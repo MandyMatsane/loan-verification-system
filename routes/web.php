@@ -21,6 +21,7 @@ Route::middleware('auth')->group(function () {
     //loan application routes
     Route::get('/applications/create', [LoanApplicationController::class, 'create'])->name('applications.create');
     Route::post('/applications', [LoanApplicationController::class, 'store'])->name('applications.store');
+    Route::get('/applications/{application}/confirmation', [LoanApplicationController::class, 'confirmation'])->name('applications.confirmation');
     Route::get('/applications/{application}', [LoanApplicationController::class, 'show'])->name('applications.show');
     Route::post('/applications/{application}/documents', [LoanApplicationController::class, 'uploadDocument'])->name('applications.documents.store');
 

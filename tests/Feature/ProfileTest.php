@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class ProfileTest extends TestCase
@@ -19,6 +21,47 @@ class ProfileTest extends TestCase
             ->get('/profile');
 
         $response->assertOk();
+    }
+
+    public function test_profile_page_includes_applicant_details_form(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this
+            ->actingAs($user)
+            ->get('/profile');
+
+        $response
+            ->assertOk()
+            ->assertSee('Applicant profile')
+            ->assertSee('Phone number')
+            ->assertSee('ID number');
+    }
+
+    public function test_new_users_are_redirected_to_profile_setup_after_registration(): void
+    {
+        $response = $this->post('/register', [
+            'name' => 'Applicant User',
+            'email' => 'applicant@example.com',
+            'password' => 'Password123!',
+            'password_confirmation' => 'Password123!',
+        ]);
+
+        $response->assertRedirect('/profile');
+    }
+
+    public function test_applicant_dashboard_shows_application_cta(): void
+    {
+        $user = User::factory()->create(['role' => 'applicant']);
+
+        $response = $this
+            ->actingAs($user)
+            ->get('/dashboard');
+
+        $response
+            ->assertOk()
+            ->assertSee('Apply for a loan')
+            ->assertSee('Start your application');
     }
 
     public function test_profile_information_can_be_updated(): void
@@ -95,5 +138,44 @@ class ProfileTest extends TestCase
             ->assertRedirect('/profile');
 
         $this->assertNotNull($user->fresh());
+    }
+
+    public function test_user_can_submit_a_loan_application_with_required_documents(): void
+    {
+        $user = User::factory()->create();
+
+        Storage::fake('public');
+
+        $response = $this
+            ->actingAs($user)
+            ->post('/applications', [
+                'amount_requested' => '2500.00',
+                'id_document' => UploadedFile::fake()->image('id-document.jpg', 800, 600),
+                'payslip' => UploadedFile::fake()->create('payslip.pdf', 200, 'application/pdf'),
+                'bank_statement' => UploadedFile::fake()->create('bank-statement.png', 200, 'image/png'),
+            ]);
+
+        $response->assertRedirect(
+            route('applications.confirmation', ['application' => 1])
+        );
+
+        $this->assertDatabaseHas('loan_applications', [
+            'user_id' => $user->id,
+            'amount_requested' => '2500.00',
+            'status' => 'Pending',
+        ]);
+
+        $this->assertDatabaseHas('documents', [
+            'type' => 'id_document',
+        ]);
+        $this->assertDatabaseHas('documents', [
+            'type' => 'payslip',
+        ]);
+        $this->assertDatabaseHas('documents', [
+            'type' => 'bank_statement',
+        ]);
+
+        $this->assertDatabaseCount('documents', 3);
+        Storage::disk('public')->assertExists('loan-applications/' . $user->id . '/');
     }
 }
