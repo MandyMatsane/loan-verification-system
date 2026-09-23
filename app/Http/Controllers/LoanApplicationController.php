@@ -4,12 +4,20 @@ namespace App\Http\Controllers;
 
 use App\Models\Document;
 use App\Models\LoanApplication;
+use App\Services\OcrService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 
 class LoanApplicationController extends Controller
 {
+    protected OcrService $ocrService;
+
+    public function __construct(OcrService $ocrService)
+    {
+        $this->ocrService = $ocrService;
+    }
+
     public function create()
     {
         return view('applications.create');
@@ -38,12 +46,14 @@ class LoanApplicationController extends Controller
                 'public'
             );
 
-            Document::create([
+            $document = Document::create([
                 'application_id' => $application->id,
                 'type' => $documentType,
                 'file_path' => $path,
                 'uploaded_at' => now(),
             ]);
+
+            $this->ocrService->process($document);
         }
 
         return redirect()->route('applications.confirmation', $application)
@@ -89,15 +99,16 @@ class LoanApplicationController extends Controller
             'public'
         );
 
-        Document::create([
+        $document = Document::create([
             'application_id' => $application->id,
             'type' => $validated['type'],
             'file_path' => $path,
             'uploaded_at' => now(),
         ]);
 
+        $this->ocrService->process($document);
+
         return redirect()->route('applications.show', $application)
             ->with('success', 'Document uploaded successfully.');
     }
 }
-

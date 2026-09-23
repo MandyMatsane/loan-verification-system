@@ -2,6 +2,13 @@
     @php
         $user = Auth::user();
         $isAdmin = $user && $user->role === 'admin';
+        $applications = $applications ?? collect();
+        $totalApplications = $applications->count();
+        $pendingApplications = $applications->where('status', 'Pending')->count();
+        $reviewedApplications = $applications->where('status', 'Reviewed')->count();
+        $flaggedApplications = $applications->filter(function ($application) {
+            return $application->aiAssessment && $application->aiAssessment->fraud_risk_score !== null && $application->aiAssessment->fraud_risk_score >= 70;
+        })->count();
     @endphp
 
     <x-slot name="header">
@@ -35,25 +42,25 @@
                     <div class="flex items-start justify-between gap-4">
                         <div>
                             <p class="text-sm font-medium text-slate-400">Today’s progress</p>
-                            <h3 class="mt-2 text-3xl font-semibold text-white">120 applications</h3>
+                            <h3 class="mt-2 text-3xl font-semibold text-white">{{ $totalApplications }} applications</h3>
                         </div>
                         <div class="rounded-full bg-emerald-500/15 px-3 py-1 text-sm font-medium text-emerald-300">
-                            +18% faster review
+                            {{ $applications->count() > 0 ? 'Live data active' : 'No applications yet' }}
                         </div>
                     </div>
 
                     <div class="mt-6 grid gap-4 sm:grid-cols-3">
                         <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
                             <p class="text-sm text-slate-400">Pending</p>
-                            <p class="mt-2 text-2xl font-semibold text-white">34</p>
+                            <p class="mt-2 text-2xl font-semibold text-white">{{ $pendingApplications }}</p>
                         </div>
                         <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
                             <p class="text-sm text-slate-400">Reviewed</p>
-                            <p class="mt-2 text-2xl font-semibold text-white">76</p>
+                            <p class="mt-2 text-2xl font-semibold text-white">{{ $reviewedApplications }}</p>
                         </div>
                         <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
                             <p class="text-sm text-slate-400">Flagged</p>
-                            <p class="mt-2 text-2xl font-semibold text-white">10</p>
+                            <p class="mt-2 text-2xl font-semibold text-white">{{ $flaggedApplications }}</p>
                         </div>
                     </div>
                 </div>
@@ -71,6 +78,47 @@
                         </a>
                     </div>
                 </div>
+            </div>
+
+            <div class="rounded-[2rem] border border-white/10 bg-slate-900/70 p-6">
+                <div class="mb-4 flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-cyan-300">Latest applications</p>
+                        <h3 class="mt-2 text-xl font-semibold text-white">Queue overview</h3>
+                    </div>
+                    <a href="{{ route('admin.applications.index') }}" class="text-sm font-medium text-cyan-300 hover:text-cyan-200">View all</a>
+                </div>
+
+                @if ($applications->isEmpty())
+                    <p class="text-sm text-slate-400">No applications have been submitted yet.</p>
+                @else
+                    <div class="overflow-hidden rounded-2xl border border-white/10">
+                        <table class="min-w-full divide-y divide-white/10 text-left text-sm text-slate-300">
+                            <thead class="bg-slate-950/60 text-slate-400">
+                                <tr>
+                                    <th class="px-4 py-3">Applicant</th>
+                                    <th class="px-4 py-3">Amount</th>
+                                    <th class="px-4 py-3">Status</th>
+                                    <th class="px-4 py-3">Risk</th>
+                                    <th class="px-4 py-3"></th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-white/10 bg-slate-950/30">
+                                @foreach ($applications->take(5) as $application)
+                                    <tr>
+                                        <td class="px-4 py-3 text-white">{{ $application->user?->name ?? 'Unknown user' }}</td>
+                                        <td class="px-4 py-3">R{{ number_format($application->amount_requested, 2) }}</td>
+                                        <td class="px-4 py-3">{{ $application->status }}</td>
+                                        <td class="px-4 py-3">{{ $application->aiAssessment?->fraud_risk_score ?? '—' }}</td>
+                                        <td class="px-4 py-3 text-cyan-300">
+                                            <a href="{{ route('admin.applications.show', $application) }}">View</a>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @endif
             </div>
 
             <div class="grid gap-6 lg:grid-cols-3">

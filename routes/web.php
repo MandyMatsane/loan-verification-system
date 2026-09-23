@@ -3,6 +3,8 @@
 use App\Http\Controllers\Admin\ApplicationController as AdminApplicationController;
 use App\Http\Controllers\LoanApplicationController;
 use App\Http\Controllers\ProfileController;
+use App\Models\LoanApplication;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -10,7 +12,14 @@ Route::get('/', function () {
 });
 
 Route::get('/dashboard', function () {
-    return view('dashboard');
+    $user = Auth::user();
+    $applications = collect();
+
+    if ($user && $user->role === 'admin') {
+        $applications = LoanApplication::with('user', 'aiAssessment')->latest()->get();
+    }
+
+    return view('dashboard', compact('applications'));
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {

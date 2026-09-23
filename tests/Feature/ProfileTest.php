@@ -2,19 +2,29 @@
 
 namespace Tests\Feature;
 
+use App\Models\OcrResult;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Mockery;
 use Tests\TestCase;
 
 class ProfileTest extends TestCase
 {
     use RefreshDatabase;
 
+    private function createUser(array $attributes = []): User
+    {
+        /** @var User $user */
+        $user = User::factory()->create($attributes);
+
+        return $user;
+    }
+
     public function test_profile_page_is_displayed(): void
     {
-        $user = User::factory()->create();
+        $user = $this->createUser();
 
         $response = $this
             ->actingAs($user)
@@ -25,7 +35,7 @@ class ProfileTest extends TestCase
 
     public function test_profile_page_includes_applicant_details_form(): void
     {
-        $user = User::factory()->create();
+        $user = $this->createUser();
 
         $response = $this
             ->actingAs($user)
@@ -52,7 +62,7 @@ class ProfileTest extends TestCase
 
     public function test_applicant_dashboard_shows_application_cta(): void
     {
-        $user = User::factory()->create(['role' => 'applicant']);
+        $user = $this->createUser(['role' => 'applicant']);
 
         $response = $this
             ->actingAs($user)
@@ -66,7 +76,7 @@ class ProfileTest extends TestCase
 
     public function test_profile_information_can_be_updated(): void
     {
-        $user = User::factory()->create();
+        $user = $this->createUser();
 
         $response = $this
             ->actingAs($user)
@@ -88,7 +98,7 @@ class ProfileTest extends TestCase
 
     public function test_email_verification_status_is_unchanged_when_the_email_address_is_unchanged(): void
     {
-        $user = User::factory()->create();
+        $user = $this->createUser();
 
         $response = $this
             ->actingAs($user)
@@ -106,7 +116,7 @@ class ProfileTest extends TestCase
 
     public function test_user_can_delete_their_account(): void
     {
-        $user = User::factory()->create();
+        $user = $this->createUser();
 
         $response = $this
             ->actingAs($user)
@@ -124,7 +134,7 @@ class ProfileTest extends TestCase
 
     public function test_correct_password_must_be_provided_to_delete_account(): void
     {
-        $user = User::factory()->create();
+        $user = $this->createUser();
 
         $response = $this
             ->actingAs($user)
@@ -142,7 +152,7 @@ class ProfileTest extends TestCase
 
     public function test_user_can_submit_a_loan_application_with_required_documents(): void
     {
-        $user = User::factory()->create();
+        $user = $this->createUser();
 
         Storage::fake('public');
 
@@ -176,6 +186,48 @@ class ProfileTest extends TestCase
         ]);
 
         $this->assertDatabaseCount('documents', 3);
-        Storage::disk('public')->assertExists('loan-applications/' . $user->id . '/');
+        $this->assertTrue(Storage::disk('public')->exists('loan-applications/' . $user->id . '/'));
+    }
+
+    public function test_uploaded_documents_create_ocr_results(): void
+    {
+        $user = $this->createUser();
+
+        Storage::fake('public');
+
+        $mock = Mockery::mock(\App\Services\OcrService::class);
+        $mock->shouldReceive('process')->times(3)->withArgs(function ($document) {
+            $this->assertNotNull($document);
+            $this->assertContains($document->type, ['id_document', 'payslip', 'bank_statement']);
+
+            return true;
+        })->andReturnUsing(function ($document) {
+            return OcrResult::create([
+                'document_id' => $document->id,
+                'extracted_text' => 'OCR sample text',
+                'extracted_fields' => null,
+                'confidence_score' => null,
+            ]);
+        });
+
+        $this->app->instance(\App\Services\OcrService::class, $mock);
+
+        $response = $this->actingAs($user)
+            ->post('/applications', [
+                'amount_requested' => '4500.00',
+                'id_document' => UploadedFile::fake()->image('id-document.jpg', 800, 600),
+                'payslip' => UploadedFile::fake()->create('payslip.pdf', 200, 'application/pdf'),
+                'bank_statement' => UploadedFile::fake()->create('bank-statement.png', 200, 'image/png'),
+            ]);
+
+        $response->assertRedirect();
+
+        $this->assertDatabaseHas('documents', [
+            'type' => 'id_document',
+        ]);
+        $this->assertDatabaseHas('ocr_results', [
+            'extracted_text' => 'OCR sample text',
+            'confidence_score' => null,
+        ]);
     }
 }
