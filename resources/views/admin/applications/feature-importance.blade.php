@@ -20,7 +20,7 @@
                         @forelse ($featureImportance as $item)
                             <tr>
                                 <td class="px-4 py-3">{{ $item['feature'] }}</td>
-                                <td class="px-4 py-3">{{ number_format((float) $item['importance'] * 100, 2) }}%</td>
+                                <td class="px-4 py-3">{{ number_format((float) $item['importance'], 2) }}%</td>
                             </tr>
                         @empty
                             <tr>
