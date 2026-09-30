@@ -67,12 +67,14 @@ class MlPredictionService
     {
         $application->loadMissing('user');
 
+        $baseUrl = rtrim(config('services.ml_service.url', 'http://localhost:8000'), '/');
+        $url = $baseUrl . '/api/ml/predict';
         $payload = $this->buildPayload($application);
 
         try {
-            $response = Http::timeout(15)
+            $response = Http::timeout(60)
                 ->acceptJson()
-                ->post('http://localhost:8000/api/ml/predict', $payload);
+                ->post($url, $payload);
 
             if (! $response->successful()) {
                 Log::warning('ML prediction service request failed.', [

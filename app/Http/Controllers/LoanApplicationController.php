@@ -39,9 +39,9 @@ class LoanApplicationController extends Controller
             'commercial_assets_value' => ['required', 'numeric', 'min:0'],
             'luxury_assets_value' => ['required', 'numeric', 'min:0'],
             'bank_asset_value' => ['required', 'numeric', 'min:0'],
-            'id_document' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
-            'payslip' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
-            'bank_statement' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
+            'id_document' => ['required', 'file', 'mimes:jpg,jpeg,png', 'max:5120'],
+            'payslip' => ['required', 'file', 'mimes:jpg,jpeg,png', 'max:5120'],
+            'bank_statement' => ['required', 'file', 'mimes:jpg,jpeg,png', 'max:5120'],
         ]);
 
         $application = LoanApplication::create([
@@ -112,7 +112,7 @@ class LoanApplicationController extends Controller
 
         $validated = $request->validate([
             'type' => 'required|in:id_document,payslip,bank_statement',
-            'file' => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'file' => 'required|file|mimes:jpg,jpeg,png|max:5120',
         ]);
 
         $path = $request->file('file')->storeAs(

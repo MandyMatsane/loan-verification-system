@@ -106,7 +106,8 @@
 
                         <div>
                             <label for="id_document" class="block font-medium text-sm text-gray-700">ID Document</label>
-                            <input id="id_document" type="file" name="id_document" accept=".pdf,.jpg,.jpeg,.png" class="mt-1 block w-full text-sm text-gray-700">
+                            <input id="id_document" type="file" name="id_document" accept=".jpg,.jpeg,.png" class="mt-1 block w-full text-sm text-gray-700">
+                            <p class="text-xs text-gray-500 mt-1">JPG or PNG only (max 5MB)</p>
                             @error('id_document')
                                 <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
                             @enderror
@@ -114,7 +115,8 @@
 
                         <div>
                             <label for="payslip" class="block font-medium text-sm text-gray-700">Payslip</label>
-                            <input id="payslip" type="file" name="payslip" accept=".pdf,.jpg,.jpeg,.png" class="mt-1 block w-full text-sm text-gray-700">
+                            <input id="payslip" type="file" name="payslip" accept=".jpg,.jpeg,.png" class="mt-1 block w-full text-sm text-gray-700">
+                            <p class="text-xs text-gray-500 mt-1">JPG or PNG only (max 5MB)</p>
                             @error('payslip')
                                 <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
                             @enderror
@@ -122,7 +124,8 @@
 
                         <div>
                             <label for="bank_statement" class="block font-medium text-sm text-gray-700">Bank Statement</label>
-                            <input id="bank_statement" type="file" name="bank_statement" accept=".pdf,.jpg,.jpeg,.png" class="mt-1 block w-full text-sm text-gray-700">
+                            <input id="bank_statement" type="file" name="bank_statement" accept=".jpg,.jpeg,.png" class="mt-1 block w-full text-sm text-gray-700">
+                            <p class="text-xs text-gray-500 mt-1">JPG or PNG only (max 5MB)</p>
                             @error('bank_statement')
                                 <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
                             @enderror
