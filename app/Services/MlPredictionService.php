@@ -4,12 +4,65 @@ namespace App\Services;
 
 use App\Models\AiAssessment;
 use App\Models\LoanApplication;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class MlPredictionService
 {
+    public function getFeatureImportance(): array
+    {
+        return Cache::remember('ml_feature_importance', 300, function () {
+            $baseUrl = rtrim(config('services.ml_service.url', 'http://localhost:8000'), '/');
+            $url = $baseUrl . '/api/ml/feature-importance';
+
+            try {
+                $response = Http::timeout(15)
+                    ->acceptJson()
+                    ->get($url);
+
+                if (! $response->successful()) {
+                    Log::warning('ML feature importance request failed.', [
+                        'status' => $response->status(),
+                        'body' => $response->body(),
+                    ]);
+
+                    return [];
+                }
+
+                $payload = $response->json();
+                $items = $payload['features'] ?? $payload['data'] ?? $payload ?? [];
+
+                if (! is_array($items)) {
+                    return [];
+                }
+
+                $normalized = [];
+
+                foreach ($items as $item) {
+                    $feature = $item['feature'] ?? $item['feature_name'] ?? $item['name'] ?? 'Unknown';
+                    $importance = $item['importance'] ?? $item['importance_score'] ?? $item['value'] ?? 0;
+
+                    $normalized[] = [
+                        'feature' => (string) $feature,
+                        'importance' => (float) $importance,
+                    ];
+                }
+
+                usort($normalized, fn($a, $b) => $b['importance'] <=> $a['importance']);
+
+                return $normalized;
+            } catch (Throwable $e) {
+                Log::error('ML feature importance service is unreachable.', [
+                    'message' => $e->getMessage(),
+                ]);
+
+                return [];
+            }
+        });
+    }
+
     public function predict(LoanApplication $application): ?AiAssessment
     {
         $application->loadMissing('user');
@@ -118,4 +171,3 @@ class MlPredictionService
         return $scoreMap[$band] ?? 0;
     }
 }
-

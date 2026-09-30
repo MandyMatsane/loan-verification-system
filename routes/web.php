@@ -36,9 +36,11 @@ Route::middleware('auth')->group(function () {
 
     // Admin routes
     Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
-    Route::get('/applications', [AdminApplicationController::class, 'index'])->name('applications.index');
-    Route::get('/applications/{application}', [AdminApplicationController::class, 'show'])->name('applications.show');
-});
+        Route::get('/dashboard', [AdminApplicationController::class, 'dashboard'])->name('dashboard');
+        Route::get('/feature-importance', [AdminApplicationController::class, 'featureImportance'])->name('feature-importance');
+        Route::get('/applications', [AdminApplicationController::class, 'index'])->name('applications.index');
+        Route::get('/applications/{application}', [AdminApplicationController::class, 'show'])->name('applications.show');
+    });
 });
 
 require __DIR__.'/auth.php';

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AiAssessment;
 use App\Models\LoanApplication;
 use App\Models\User;
 use App\Services\MlPredictionService;
@@ -107,5 +108,53 @@ class MlPredictionServiceTest extends TestCase
 
         $this->assertSame('Manual Review', $application->refresh()->status);
     }
-}
 
+    public function test_admin_dashboard_lists_applications_and_feature_importance(): void
+    {
+        Http::fake([
+            'http://localhost:8000/api/ml/feature-importance' => Http::response([
+                'features' => [
+                    ['feature' => 'loan_amount', 'importance' => 0.42],
+                    ['feature' => 'cibil_score', 'importance' => 0.21],
+                ],
+            ], 200),
+        ]);
+
+        /** @var User $admin */
+        $admin = User::factory()->create(['role' => 'admin', 'name' => 'Admin User']);
+        /** @var User $applicant */
+        $applicant = User::factory()->create(['role' => 'applicant', 'name' => 'Jane Applicant']);
+
+        $application = LoanApplication::create([
+            'user_id' => $applicant->id,
+            'amount_requested' => 50000,
+            'status' => 'Approved',
+            'no_of_dependents' => 2,
+            'education' => 'Graduate',
+            'loan_term' => 24,
+            'cibil_score_band' => 'Good',
+            'residential_assets_value' => 200000,
+            'commercial_assets_value' => 25000,
+            'luxury_assets_value' => 15000,
+            'bank_asset_value' => 100000,
+        ]);
+
+        AiAssessment::create([
+            'application_id' => $application->id,
+            'eligibility_outcome' => 'Approved',
+            'confidence_score' => 88.2,
+            'fraud_risk_score' => 'low',
+            'reasoning_notes' => 'Strong repayment profile.',
+        ]);
+
+        $response = $this->actingAs($admin)->get('/admin/dashboard');
+
+        $response
+            ->assertOk()
+            ->assertSee('Admin Dashboard')
+            ->assertSee('Jane Applicant')
+            ->assertSee('Approved')
+            ->assertSee('loan_amount')
+            ->assertSee('42.00%');
+    }
+}
