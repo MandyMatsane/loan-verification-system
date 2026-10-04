@@ -18,7 +18,7 @@
 
 <div {{ $attributes->merge(['class' => 'flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 md:p-5']) }}>
     @isset($icon)
-        <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl {{ $iconClass }}">
+        <div class="hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl xl:flex {{ $iconClass }}">
             {{ $icon }}
         </div>
     @endisset

@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\ApplicationController as AdminApplicationControll
 use App\Http\Controllers\LoanApplicationController;
 use App\Http\Controllers\ProfileController;
 use App\Models\LoanApplication;
+use App\Services\MlPredictionService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -14,12 +15,17 @@ Route::get('/', function () {
 Route::get('/dashboard', function () {
     $user = Auth::user();
     $applications = collect();
+    $featureImportance = [];
 
     if ($user && $user->role === 'admin') {
         $applications = LoanApplication::with('user', 'aiAssessment')->latest()->get();
+        $featureImportance = app(MlPredictionService::class)->getFeatureImportance();
+    } elseif ($user) {
+        // read-only view data: the applicant's own applications
+        $applications = LoanApplication::with('aiAssessment')->where('user_id', $user->id)->latest()->get();
     }
 
-    return view('dashboard', compact('applications'));
+    return view('dashboard', compact('applications', 'featureImportance'));
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {

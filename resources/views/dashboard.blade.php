@@ -3,210 +3,153 @@
         $user = Auth::user();
         $isAdmin = $user && $user->role === 'admin';
         $applications = $applications ?? collect();
-        $totalApplications = $applications->count();
-        $pendingApplications = $applications->where('status', 'Pending')->count();
-        $reviewedApplications = $applications->where('status', 'Reviewed')->count();
-        $flaggedApplications = $applications
-            ->filter(function ($application) {
-                return $application->aiAssessment &&
-                    $application->aiAssessment->fraud_risk_score !== null &&
-                    $application->aiAssessment->fraud_risk_score >= 70;
-            })
-            ->count();
     @endphp
 
-    <x-slot name="header">
-        @if ($isAdmin)
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                    <p class="text-sm font-medium uppercase tracking-[0.3em] text-brand">Operations overview</p>
-                    <h2 class="text-2xl font-semibold text-ink">Welcome back, {{ $user->name }}.</h2>
-                </div>
-                <div
-                    class="rounded-full border border-brand-mist bg-brand-tint px-3 py-1 text-sm font-medium text-brand-dark">
-                    Secure workspace ready
-                </div>
-            </div>
-        @else
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                    <p class="text-sm font-medium uppercase tracking-[0.3em] text-brand">Applicant dashboard</p>
-                    <h2 class="text-2xl font-semibold text-ink">Welcome back, {{ $user->name }}.</h2>
-                </div>
-                <div
-                    class="rounded-full border border-brand-mist bg-brand-tint px-3 py-1 text-sm font-medium text-brand-dark">
-                    Ready to apply
-                </div>
-            </div>
-        @endif
-    </x-slot>
-
     @if ($isAdmin)
-        <div class="space-y-6">
-            <div class="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-                <div class="rounded-[2rem] border border-white/10 bg-slate-900/70 p-6 shadow-2xl shadow-cyan-950/20">
-                    <div class="flex items-start justify-between gap-4">
-                        <div>
-                            <p class="text-sm font-medium text-slate-400">Today’s progress</p>
-                            <h3 class="mt-2 text-3xl font-semibold text-white">{{ $totalApplications }} applications
-                            </h3>
-                        </div>
-                        <div class="rounded-full bg-emerald-500/15 px-3 py-1 text-sm font-medium text-emerald-300">
-                            {{ $applications->count() > 0 ? 'Live data active' : 'No applications yet' }}
-                        </div>
-                    </div>
-
-                    <div class="mt-6 grid gap-4 sm:grid-cols-3">
-                        <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
-                            <p class="text-sm text-slate-400">Pending</p>
-                            <p class="mt-2 text-2xl font-semibold text-white">{{ $pendingApplications }}</p>
-                        </div>
-                        <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
-                            <p class="text-sm text-slate-400">Reviewed</p>
-                            <p class="mt-2 text-2xl font-semibold text-white">{{ $reviewedApplications }}</p>
-                        </div>
-                        <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
-                            <p class="text-sm text-slate-400">Flagged</p>
-                            <p class="mt-2 text-2xl font-semibold text-white">{{ $flaggedApplications }}</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div
-                    class="rounded-[2rem] border border-white/10 bg-gradient-to-br from-cyan-500/15 to-emerald-500/10 p-6">
-                    <p class="text-sm font-medium text-cyan-200">Quick actions</p>
-                    <div class="mt-4 space-y-3">
-                        <a href="{{ route('admin.dashboard') }}"
-                            class="flex items-center justify-between rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-slate-300 transition hover:bg-slate-900">
-                            <span>Open admin dashboard</span>
-                            <span class="text-cyan-300">→</span>
-                        </a>
-                        <a href="{{ route('admin.feature-importance') }}"
-                            class="flex items-center justify-between rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-slate-300 transition hover:bg-slate-900">
-                            <span>Feature importance</span>
-                            <span class="text-cyan-300">→</span>
-                        </a>
-                        <a href="{{ route('profile.edit') }}"
-                            class="flex items-center justify-between rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-slate-300 transition hover:bg-slate-900">
-                            <span>Manage profile</span>
-                            <span class="text-cyan-300">→</span>
-                        </a>
-                    </div>
-                </div>
-            </div>
-
-            <div class="rounded-[2rem] border border-white/10 bg-slate-900/70 p-6">
-                <div class="mb-4 flex items-center justify-between">
-                    <div>
-                        <p class="text-sm font-medium text-cyan-300">Latest applications</p>
-                        <h3 class="mt-2 text-xl font-semibold text-white">Queue overview</h3>
-                    </div>
-                    <a href="{{ route('admin.applications.index') }}"
-                        class="text-sm font-medium text-cyan-300 hover:text-cyan-200">View all</a>
-                </div>
-
-                @if ($applications->isEmpty())
-                    <p class="text-sm text-slate-400">No applications have been submitted yet.</p>
-                @else
-                    <div class="overflow-hidden rounded-2xl border border-white/10">
-                        <table class="min-w-full divide-y divide-white/10 text-left text-sm text-slate-300">
-                            <thead class="bg-slate-950/60 text-slate-400">
-                                <tr>
-                                    <th class="px-4 py-3">Applicant</th>
-                                    <th class="px-4 py-3">Amount</th>
-                                    <th class="px-4 py-3">Status</th>
-                                    <th class="px-4 py-3">Risk</th>
-                                    <th class="px-4 py-3"></th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-white/10 bg-slate-950/30">
-                                @foreach ($applications->take(5) as $application)
-                                    <tr>
-                                        <td class="px-4 py-3 text-white">
-                                            {{ $application->user?->name ?? 'Unknown user' }}</td>
-                                        <td class="px-4 py-3">R{{ number_format($application->amount_requested, 2) }}
-                                        </td>
-                                        <td class="px-4 py-3">{{ $application->status }}</td>
-                                        <td class="px-4 py-3">
-                                            {{ $application->aiAssessment?->fraud_risk_score ?? '—' }}</td>
-                                        <td class="px-4 py-3 text-cyan-300">
-                                            <a href="{{ route('admin.applications.show', $application) }}">View</a>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                @endif
-            </div>
-
-            <div class="grid gap-6 lg:grid-cols-3">
-                <div class="rounded-[2rem] border border-white/10 bg-slate-900/70 p-6">
-                    <p class="text-sm font-medium text-cyan-300">Document verification</p>
-                    <h3 class="mt-3 text-xl font-semibold text-white">Modern intake workflow</h3>
-                    <p class="mt-2 text-sm leading-7 text-slate-400">Upload supporting documents and keep every review
-                        step organized in one place.</p>
-                </div>
-                <div class="rounded-[2rem] border border-white/10 bg-slate-900/70 p-6">
-                    <p class="text-sm font-medium text-cyan-300">AI review</p>
-                    <h3 class="mt-3 text-xl font-semibold text-white">Smarter decisions</h3>
-                    <p class="mt-2 text-sm leading-7 text-slate-400">Use structured insights to identify risk signals
-                        and support better approvals.</p>
-                </div>
-                <div class="rounded-[2rem] border border-white/10 bg-slate-900/70 p-6">
-                    <p class="text-sm font-medium text-cyan-300">Admin controls</p>
-                    <h3 class="mt-3 text-xl font-semibold text-white">Protected operations</h3>
-                    <p class="mt-2 text-sm leading-7 text-slate-400">Role-based access keeps sensitive workflows secure
-                        and easy to monitor.</p>
-                </div>
-            </div>
-        </div>
+        @include('admin.applications.partials.overview')
     @else
-        <div class="space-y-6">
-            <div
-                class="rounded-[2rem] border border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 via-slate-900/80 to-cyan-500/10 p-6 shadow-2xl shadow-emerald-950/20">
-                <div class="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-                    <div class="max-w-2xl">
-                        <p class="text-sm font-medium uppercase tracking-[0.3em] text-emerald-300">Loan application</p>
-                        <h3 class="mt-3 text-3xl font-semibold text-white">Apply for a loan</h3>
-                        <p class="mt-3 text-base leading-7 text-slate-300">
-                            Start your application in a few steps. Upload your ID, payslip, and bank statement, then
-                            track the status of your request in one place.
-                        </p>
-                    </div>
+        @php
+            $latest = $applications->first();
+            $statusOf = fn ($application) => strtolower(trim(str_replace('_', ' ', (string) $application->status)));
+            $approvedCount = $applications->filter(fn ($application) => $statusOf($application) === 'approved')->count();
+            $awaitingCount = $applications->filter(fn ($application) => in_array($statusOf($application), ['pending', 'manual review', ''], true))->count();
+            $firstName = \Illuminate\Support\Str::before(trim($user->name), ' ');
+            $initials = collect(preg_split('/\s+/', trim($user->name)))->filter()->take(2)
+                ->map(fn ($part) => mb_strtoupper(mb_substr($part, 0, 1)))->implode('');
 
-                    <div class="flex flex-col gap-3 sm:flex-row">
-                        <a href="{{ route('applications.create') }}"
-                            class="inline-flex items-center justify-center rounded-full bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400">
-                            Start your application
-                        </a>
-                        <a href="{{ route('profile.edit') }}"
-                            class="inline-flex items-center justify-center rounded-full border border-white/15 bg-slate-900/70 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800">
-                            Update profile
-                        </a>
-                    </div>
+            $tiles = array_filter([
+                ['label' => 'New application', 'icon' => 'plus', 'href' => route('applications.create')],
+                $latest ? ['label' => 'Latest result', 'icon' => 'document', 'href' => route('applications.show', $latest)] : null,
+                ['label' => 'My applications', 'icon' => 'list', 'href' => '#my-applications'],
+                ['label' => 'Profile', 'icon' => 'user', 'href' => route('profile.edit')],
+            ]);
+        @endphp
+
+        <div class="space-y-6">
+            {{-- Phone greeting --}}
+            <div class="flex items-center gap-3 md:hidden">
+                <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand text-sm font-bold text-white">{{ $initials }}</span>
+                <div class="min-w-0">
+                    <p class="text-sm text-slate-500">Welcome back</p>
+                    <h1 class="truncate text-lg font-extrabold text-ink">{{ $user->name }}</h1>
                 </div>
             </div>
 
-            <div class="grid gap-6 lg:grid-cols-3">
-                <div class="rounded-[2rem] border border-white/10 bg-slate-900/70 p-6">
-                    <p class="text-sm font-medium text-emerald-300">Step 1</p>
-                    <h3 class="mt-3 text-xl font-semibold text-white">Complete your profile</h3>
-                    <p class="mt-2 text-sm leading-7 text-slate-400">Keep your personal and employment details up to
-                        date so your application is ready for review.</p>
+            {{-- Laptop header --}}
+            <x-page-header class="hidden md:flex" eyebrow="Dashboard" title="Welcome back, {{ $firstName }}" subtitle="Track your applications or start a new one.">
+                <x-slot name="actions">
+                    <x-button-link href="{{ route('applications.create') }}">
+                        <x-icon name="plus" />
+                        Start new application
+                    </x-button-link>
+                </x-slot>
+            </x-page-header>
+
+            <div class="grid gap-6 xl:grid-cols-3">
+                {{-- Stat cards: md and up --}}
+                <div class="hidden gap-4 md:order-1 md:grid md:grid-cols-3 xl:col-span-3">
+                    <x-stat-card label="Applications" :value="$applications->count()">
+                        <x-slot name="icon"><x-icon name="list" /></x-slot>
+                    </x-stat-card>
+                    <x-stat-card label="Approved" :value="$approvedCount" tone="success">
+                        <x-slot name="icon"><x-icon name="check" /></x-slot>
+                    </x-stat-card>
+                    <x-stat-card label="Awaiting decision" :value="$awaitingCount">
+                        <x-slot name="icon"><x-icon name="clock" /></x-slot>
+                    </x-stat-card>
                 </div>
-                <div class="rounded-[2rem] border border-white/10 bg-slate-900/70 p-6">
-                    <p class="text-sm font-medium text-cyan-300">Step 2</p>
-                    <h3 class="mt-3 text-xl font-semibold text-white">Upload documents</h3>
-                    <p class="mt-2 text-sm leading-7 text-slate-400">Add your ID document, payslip, and bank statement
-                        to complete your submission.</p>
+
+                {{-- Hero: latest application --}}
+                <div class="order-1 self-start rounded-2xl bg-brand-dark p-5 text-white md:order-2 md:p-6 xl:order-3">
+                    @if ($latest)
+                        <p class="text-sm text-brand-light">Latest application - #{{ $latest->id }}</p>
+                        <p class="mt-1 text-3xl font-extrabold tabular-nums text-white">R{{ number_format($latest->amount_requested, 2) }}</p>
+                        <div class="mt-3">
+                            <x-status-badge :status="$latest->status" />
+                        </div>
+                        <x-confidence-bar class="mt-4" :score="$latest->aiAssessment?->confidence_score" on-dark />
+                        <x-button-link variant="white" class="mt-4 w-full" href="{{ route('applications.show', $latest) }}">
+                            View application
+                        </x-button-link>
+                    @else
+                        <p class="text-sm text-brand-light">No applications yet</p>
+                        <p class="mt-1 text-2xl font-extrabold text-white">Apply for a loan</p>
+                        <p class="mt-2 text-sm leading-6 text-brand-mist">Enter your loan details, upload three documents and get a clear result.</p>
+                        <x-button-link variant="white" class="mt-4 w-full" href="{{ route('applications.create') }}">
+                            Start your application
+                        </x-button-link>
+                    @endif
                 </div>
-                <div class="rounded-[2rem] border border-white/10 bg-slate-900/70 p-6">
-                    <p class="text-sm font-medium text-violet-300">Step 3</p>
-                    <h3 class="mt-3 text-xl font-semibold text-white">Track your status</h3>
-                    <p class="mt-2 text-sm leading-7 text-slate-400">Follow your application as it moves from intake to
-                        review and decision.</p>
+
+                {{-- Quick actions: phone only --}}
+                <div class="order-2 grid gap-2 md:hidden {{ count($tiles) === 4 ? 'grid-cols-4' : 'grid-cols-3' }}">
+                    @foreach ($tiles as $tile)
+                        <a href="{{ $tile['href'] }}" class="flex min-h-11 flex-col items-center gap-2 rounded-xl p-1 text-center focus:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+                            <span class="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-tint text-brand">
+                                <x-icon :name="$tile['icon']" class="h-6 w-6" />
+                            </span>
+                            <span class="text-xs font-semibold leading-tight text-ink">{{ $tile['label'] }}</span>
+                        </a>
+                    @endforeach
                 </div>
+
+                {{-- Applications: list below md, table from md up --}}
+                <section id="my-applications" class="order-3 min-w-0 scroll-mt-6 md:rounded-2xl md:border md:border-slate-200 md:bg-white md:p-6 xl:order-2 xl:col-span-2">
+                    <h2 class="mb-3 text-base font-bold text-ink md:mb-4">
+                        <span class="md:hidden">Recent applications</span>
+                        <span class="hidden md:inline">My applications</span>
+                    </h2>
+
+                    @if ($applications->isEmpty())
+                        <p class="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-body md:border-0 md:p-0">You have not submitted an application yet.</p>
+                    @else
+                        <div class="hidden overflow-x-auto md:block">
+                            <table class="min-w-full text-left text-sm">
+                                <thead>
+                                    <tr class="border-b border-slate-200 text-xs font-semibold text-slate-500">
+                                        <th scope="col" class="py-2 pr-4">Reference</th>
+                                        <th scope="col" class="px-4 py-2">Amount</th>
+                                        <th scope="col" class="px-4 py-2">Status</th>
+                                        <th scope="col" class="px-4 py-2">Submitted</th>
+                                        <th scope="col" class="py-2 pl-4"><span class="sr-only">Action</span></th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-200">
+                                    @foreach ($applications as $application)
+                                        <tr>
+                                            <td class="py-2 pr-4 font-semibold text-ink">#{{ $application->id }}</td>
+                                            <td class="whitespace-nowrap px-4 py-2 tabular-nums text-ink">R{{ number_format($application->amount_requested, 2) }}</td>
+                                            <td class="px-4 py-2"><x-status-badge :status="$application->status" /></td>
+                                            <td class="whitespace-nowrap px-4 py-2 text-body">{{ $application->created_at?->format('j M') }}</td>
+                                            <td class="py-2 pl-4 text-right">
+                                                <a href="{{ route('applications.show', $application) }}" class="inline-flex min-h-11 items-center px-2 font-bold text-brand hover:text-brand-dark">
+                                                    View<span class="sr-only"> application #{{ $application->id }}</span>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <ul class="space-y-3 md:hidden">
+                            @foreach ($applications as $application)
+                                <li>
+                                    <a href="{{ route('applications.show', $application) }}" class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+                                        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-brand">
+                                            <x-icon name="document" />
+                                        </span>
+                                        <span class="min-w-0 flex-1">
+                                            <span class="block truncate text-sm font-bold text-ink">#{{ $application->id }} - R{{ number_format($application->amount_requested, 2) }}</span>
+                                            <span class="block text-xs text-slate-500">{{ $application->created_at?->format('j M') }}</span>
+                                        </span>
+                                        <x-status-badge :status="$application->status" />
+                                    </a>
+                                </li>
+                            @endforeach
+                        </ul>
+                    @endif
+                </section>
             </div>
         </div>
     @endif
