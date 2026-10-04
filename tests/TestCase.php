@@ -10,7 +10,6 @@ abstract class TestCase extends BaseTestCase
     protected function setUp(): void
     {
         parent::setUp();
-
         // tests must never call the real ML service; fake the request instead
         Http::preventStrayRequests();
     }
