@@ -26,6 +26,7 @@ class RegistrationTest extends TestCase
         ]);
 
         $this->assertAuthenticated();
-        $response->assertRedirect(route('dashboard', absolute: false));
+        // new applicants are sent to complete their profile first
+        $response->assertRedirect(route('profile.edit', absolute: false));
     }
 }

@@ -22,6 +22,24 @@ class ProfileTest extends TestCase
         return $user;
     }
 
+    /**
+     * The non-file fields the application form requires.
+     */
+    private function loanDetails(array $overrides = []): array
+    {
+        return array_merge([
+            'amount_requested' => '2500.00',
+            'no_of_dependents' => 2,
+            'education' => 'Graduate',
+            'loan_term' => 12,
+            'cibil_score_band' => 'Good',
+            'residential_assets_value' => 0,
+            'commercial_assets_value' => 0,
+            'luxury_assets_value' => 0,
+            'bank_asset_value' => 0,
+        ], $overrides);
+    }
+
     public function test_profile_page_is_displayed(): void
     {
         $user = $this->createUser();
@@ -159,9 +177,9 @@ class ProfileTest extends TestCase
         $response = $this
             ->actingAs($user)
             ->post('/applications', [
-                'amount_requested' => '2500.00',
+                ...$this->loanDetails(['amount_requested' => '2500.00']),
                 'id_document' => UploadedFile::fake()->image('id-document.jpg', 800, 600),
-                'payslip' => UploadedFile::fake()->create('payslip.pdf', 200, 'application/pdf'),
+                'payslip' => UploadedFile::fake()->image('payslip.jpg', 800, 600),
                 'bank_statement' => UploadedFile::fake()->create('bank-statement.png', 200, 'image/png'),
             ]);
 
@@ -214,9 +232,9 @@ class ProfileTest extends TestCase
 
         $response = $this->actingAs($user)
             ->post('/applications', [
-                'amount_requested' => '4500.00',
+                ...$this->loanDetails(['amount_requested' => '4500.00']),
                 'id_document' => UploadedFile::fake()->image('id-document.jpg', 800, 600),
-                'payslip' => UploadedFile::fake()->create('payslip.pdf', 200, 'application/pdf'),
+                'payslip' => UploadedFile::fake()->image('payslip.jpg', 800, 600),
                 'bank_statement' => UploadedFile::fake()->create('bank-statement.png', 200, 'image/png'),
             ]);
 

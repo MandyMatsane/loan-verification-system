@@ -114,8 +114,9 @@ class MlPredictionServiceTest extends TestCase
         Http::fake([
             'http://localhost:8000/api/ml/feature-importance' => Http::response([
                 'features' => [
-                    ['feature' => 'loan_amount', 'importance' => 0.42],
-                    ['feature' => 'cibil_score', 'importance' => 0.21],
+                    // the service returns importance as a percentage
+                    ['feature' => 'loan_amount', 'importance' => 42.0],
+                    ['feature' => 'cibil_score', 'importance' => 21.0],
                 ],
             ], 200),
         ]);
@@ -151,10 +152,13 @@ class MlPredictionServiceTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertSee('Admin Dashboard')
+            ->assertSee('Operations overview')
             ->assertSee('Jane Applicant')
             ->assertSee('Approved')
-            ->assertSee('loan_amount')
-            ->assertSee('42.00%');
+            ->assertSee('88.2%')
+            ->assertSee('Loan amount')
+            ->assertSee('42.0%')
+            ->assertSee('CIBIL score')
+            ->assertSee('21.0%');
     }
 }
