@@ -13,7 +13,8 @@
     <body x-data="theme()" :class="themeClass" class="min-h-screen bg-surface font-sans text-body antialiased">
         <script>if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark');</script>
         @php
-            $navLink = 'inline-flex min-h-11 items-center rounded-xl px-3 text-sm font-medium text-brand-mist transition hover:bg-brand hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white';
+            $navLink = 'inline-flex min-h-11 items-center rounded-xl px-3 text-sm font-medium transition focus:outline-none focus-visible:ring-2';
+            $navButton = 'ml-2 inline-flex min-h-12 items-center justify-center rounded-xl px-5 py-2 text-sm font-bold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2';
 
             $solutions = [
                 'Identity checks' => 'Confirm applicant identity through structured document review and verification workflow.',
@@ -36,27 +37,50 @@
             ];
         @endphp
 
-        <header class="sticky top-0 z-40 border-b border-white/10 bg-brand-dark text-white">
+        {{-- Sticky header: white while it sits on a teal section, teal while it sits on the page background --}}
+        <header x-data="{
+                    onTeal: true,
+                    navOnTeal: 'text-body hover:bg-brand-tint hover:text-ink focus-visible:ring-brand',
+                    navOnPage: 'text-brand-mist hover:bg-brand hover:text-white focus-visible:ring-white',
+                    buttonOnTeal: 'bg-brand text-white hover:bg-brand-dark focus-visible:ring-brand',
+                    buttonOnPage: 'bg-paper text-brand-dark hover:bg-brand-mist focus-visible:ring-white focus-visible:ring-offset-brand-dark',
+                    check() {
+                        const y = this.$el.offsetHeight + 1;
+                        this.onTeal = [...document.querySelectorAll('[data-teal]')].some((el) => {
+                            const box = el.getBoundingClientRect();
+                            return box.top <= y && box.bottom > y;
+                        });
+                    },
+                }"
+                x-init="check()" @scroll.window.passive="check()" @resize.window.passive="check()"
+                :class="onTeal ? 'border-slate-200 bg-white' : 'border-white/10 bg-brand-dark'"
+                class="sticky top-0 z-40 border-b transition-colors duration-300">
             <div class="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 md:px-8">
-                <a href="/" class="rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-white">
-                    <x-brand-mark />
+                <a href="/" class="inline-flex items-center gap-3 rounded-xl focus:outline-none focus-visible:ring-2" :class="onTeal ? 'focus-visible:ring-brand' : 'focus-visible:ring-white'">
+                    <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand text-white">
+                        <x-icon name="check" class="h-5 w-5" />
+                    </span>
+                    <span class="whitespace-nowrap leading-tight">
+                        <span class="block text-sm font-bold transition-colors duration-300" :class="onTeal ? 'text-ink' : 'text-white'">Loan Verification</span>
+                        <span class="block text-sm transition-colors duration-300" :class="onTeal ? 'text-body' : 'text-brand-light'">System</span>
+                    </span>
                 </a>
 
                 @if (Route::has('login'))
                     <nav class="flex items-center gap-1" aria-label="Main">
-                        <a href="#solutions" class="{{ $navLink }} hidden md:inline-flex">Solutions</a>
-                        <a href="#process" class="{{ $navLink }} hidden md:inline-flex">Process</a>
-                        <button type="button" @click="toggle" class="{{ $navLink }} gap-2" :aria-label="theme === 'dark' ? 'Light mode' : 'Dark mode'">
+                        <a href="#solutions" class="{{ $navLink }} hidden md:inline-flex" :class="onTeal ? navOnTeal : navOnPage">Solutions</a>
+                        <a href="#process" class="{{ $navLink }} hidden md:inline-flex" :class="onTeal ? navOnTeal : navOnPage">Process</a>
+                        <button type="button" @click="toggle" class="{{ $navLink }} gap-2" :class="onTeal ? navOnTeal : navOnPage" :aria-label="theme === 'dark' ? 'Light mode' : 'Dark mode'">
                             <x-icon name="moon" x-show="theme !== 'dark'" />
                             <x-icon name="sun" x-show="theme === 'dark'" x-cloak />
                             <span class="hidden md:inline" x-text="theme === 'dark' ? 'Light mode' : 'Dark mode'">Dark mode</span>
                         </button>
                         @auth
-                            <x-button-link variant="white" href="{{ url('/dashboard') }}" class="ml-2">Dashboard</x-button-link>
+                            <a href="{{ url('/dashboard') }}" class="{{ $navButton }}" :class="onTeal ? buttonOnTeal : buttonOnPage">Dashboard</a>
                         @else
-                            <a href="{{ route('login') }}" class="{{ $navLink }}">Sign in</a>
+                            <a href="{{ route('login') }}" class="{{ $navLink }}" :class="onTeal ? navOnTeal : navOnPage">Sign in</a>
                             @if (Route::has('register'))
-                                <x-button-link variant="white" href="{{ route('register') }}" class="ml-2 hidden md:inline-flex">Create account</x-button-link>
+                                <a href="{{ route('register') }}" class="{{ $navButton }} hidden md:inline-flex" :class="onTeal ? buttonOnTeal : buttonOnPage">Create account</a>
                             @endif
                         @endauth
                     </nav>
@@ -64,7 +88,7 @@
             </div>
         </header>
 
-        <div class="bg-brand-dark text-white">
+        <div class="bg-brand-dark text-white" data-teal>
 
             <section class="mx-auto grid max-w-6xl gap-8 px-4 pb-12 pt-6 md:px-8 md:pb-16 md:pt-10 lg:grid-cols-5 lg:items-center">
                 <div class="lg:col-span-3">
@@ -136,7 +160,7 @@
                 </ol>
             </section>
 
-            <section class="flex flex-col gap-5 rounded-2xl bg-brand-dark p-6 text-white md:flex-row md:items-center md:justify-between md:p-8">
+            <section data-teal class="flex flex-col gap-5 rounded-2xl bg-brand-dark p-6 text-white md:flex-row md:items-center md:justify-between md:p-8">
                 <div class="max-w-xl">
                     <h2 class="text-2xl font-extrabold text-white">Ready to start your application?</h2>
                     <p class="mt-2 text-sm leading-6 text-brand-mist">Upload your documents once. We read them, check them and give you a clear result.</p>
