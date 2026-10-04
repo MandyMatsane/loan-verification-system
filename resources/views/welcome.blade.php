@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="scroll-smooth">
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -36,32 +36,35 @@
             ];
         @endphp
 
-        <div class="bg-brand-dark text-white">
-            <header class="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-4 md:flex-row md:items-center md:justify-between md:px-8">
-                <a href="/" class="self-start rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-white">
+        <header class="sticky top-0 z-40 border-b border-white/10 bg-brand-dark text-white">
+            <div class="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 md:px-8">
+                <a href="/" class="rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-white">
                     <x-brand-mark />
                 </a>
 
                 @if (Route::has('login'))
-                    <nav class="-mx-3 flex flex-wrap items-center gap-1 md:mx-0" aria-label="Main">
-                        <a href="#solutions" class="{{ $navLink }}">Solutions</a>
-                        <a href="#process" class="{{ $navLink }}">Process</a>
-                        <button type="button" @click="toggle" class="{{ $navLink }} gap-2">
+                    <nav class="flex items-center gap-1" aria-label="Main">
+                        <a href="#solutions" class="{{ $navLink }} hidden md:inline-flex">Solutions</a>
+                        <a href="#process" class="{{ $navLink }} hidden md:inline-flex">Process</a>
+                        <button type="button" @click="toggle" class="{{ $navLink }} gap-2" :aria-label="theme === 'dark' ? 'Light mode' : 'Dark mode'">
                             <x-icon name="moon" x-show="theme !== 'dark'" />
                             <x-icon name="sun" x-show="theme === 'dark'" x-cloak />
-                            <span x-text="theme === 'dark' ? 'Light mode' : 'Dark mode'">Dark mode</span>
+                            <span class="hidden md:inline" x-text="theme === 'dark' ? 'Light mode' : 'Dark mode'">Dark mode</span>
                         </button>
                         @auth
-                            <x-button-link variant="white" href="{{ url('/dashboard') }}" class="ml-3 md:ml-2">Dashboard</x-button-link>
+                            <x-button-link variant="white" href="{{ url('/dashboard') }}" class="ml-2">Dashboard</x-button-link>
                         @else
                             <a href="{{ route('login') }}" class="{{ $navLink }}">Sign in</a>
                             @if (Route::has('register'))
-                                <x-button-link variant="white" href="{{ route('register') }}" class="ml-3 md:ml-2">Create account</x-button-link>
+                                <x-button-link variant="white" href="{{ route('register') }}" class="ml-2 hidden md:inline-flex">Create account</x-button-link>
                             @endif
                         @endauth
                     </nav>
                 @endif
-            </header>
+            </div>
+        </header>
+
+        <div class="bg-brand-dark text-white">
 
             <section class="mx-auto grid max-w-6xl gap-8 px-4 pb-12 pt-6 md:px-8 md:pb-16 md:pt-10 lg:grid-cols-5 lg:items-center">
                 <div class="lg:col-span-3">
@@ -97,7 +100,7 @@
         </div>
 
         <main class="mx-auto max-w-6xl space-y-12 px-4 py-12 md:px-8">
-            <section id="solutions" class="scroll-mt-6">
+            <section id="solutions" class="scroll-mt-24">
                 <h2 class="text-2xl font-extrabold text-ink">Solutions</h2>
                 <div class="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                     @foreach ($solutions as $title => $text)
@@ -110,7 +113,7 @@
                 </div>
             </section>
 
-            <section id="process" class="scroll-mt-6">
+            <section id="process" class="scroll-mt-24">
                 <div class="max-w-2xl">
                     <p class="text-sm font-semibold text-brand">How it works</p>
                     <h2 class="mt-1 text-2xl font-extrabold text-ink">A structured verification process for modern lending teams</h2>
