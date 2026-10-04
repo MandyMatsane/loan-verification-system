@@ -13,7 +13,20 @@ export default {
     theme: {
         extend: {
             fontFamily: {
-                sans: ['Figtree', ...defaultTheme.fontFamily.sans],
+                sans: ['"Plus Jakarta Sans"', ...defaultTheme.fontFamily.sans],
+            },
+            colors: {
+                brand: {
+                    DEFAULT: '#0F766E',
+                    dark: '#115E59',
+                    light: '#99D5CF',
+                    mist: '#D1E7E4',
+                    tint: '#E6F4F2',
+                },
+                success: '#22C55E',
+                surface: '#F8FAFC',
+                ink: '#0F172A',
+                body: '#475569',
             },
         },
     },
