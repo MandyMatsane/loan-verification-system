@@ -1,51 +1,48 @@
 <x-guest-layout>
     <div class="space-y-6">
-        <div class="text-center">
-            <p class="text-sm font-semibold uppercase tracking-[0.3em] text-cyan-300">Welcome back</p>
-            <h2 class="mt-2 text-3xl font-semibold text-white">Sign in to your workspace</h2>
-            <p class="mt-2 text-sm text-slate-400">Continue reviewing loan applications with clarity and control.</p>
+        <div>
+            <h2 class="text-2xl font-extrabold text-ink">Welcome back</h2>
+            <p class="mt-1 text-sm text-body">Sign in to continue your application</p>
         </div>
 
-        <x-auth-session-status class="mb-4" :status="session('status')" />
+        <x-auth-session-status :status="session('status')" />
 
         <form method="POST" action="{{ route('login') }}" class="space-y-4">
             @csrf
 
             <div>
-                <label for="email" class="mb-2 block text-sm font-medium text-slate-300">Email address</label>
-                <x-text-input id="email" class="mt-1 block w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:border-cyan-400 focus:ring-cyan-400" type="email" name="email" :value="old('email')" required autofocus autocomplete="username" />
+                <x-input-label for="email" :value="__('Email')" />
+                <x-text-input id="email" class="mt-2 block w-full" type="email" name="email" :value="old('email')" placeholder="you@example.com" required autofocus autocomplete="username" />
                 <x-input-error :messages="$errors->get('email')" class="mt-2" />
             </div>
 
             <div>
-                <label for="password" class="mb-2 block text-sm font-medium text-slate-300">Password</label>
-                <x-text-input id="password" class="mt-1 block w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:border-cyan-400 focus:ring-cyan-400" type="password" name="password" required autocomplete="current-password" />
+                <x-input-label for="password" :value="__('Password')" />
+                <x-text-input id="password" class="mt-2 block w-full" type="password" name="password" placeholder="Enter your password" required autocomplete="current-password" />
                 <x-input-error :messages="$errors->get('password')" class="mt-2" />
             </div>
 
-            <div class="flex items-center justify-between">
-                <label for="remember_me" class="inline-flex items-center">
-                    <input id="remember_me" type="checkbox" class="rounded border-white/10 bg-slate-950 text-cyan-500 shadow-sm focus:ring-cyan-500" name="remember">
-                    <span class="ms-2 text-sm text-slate-400">Remember me</span>
+            <div class="flex items-center justify-between gap-4">
+                <label for="remember_me" class="inline-flex min-h-11 items-center gap-2">
+                    <input id="remember_me" type="checkbox" class="h-5 w-5 rounded border-slate-300 text-brand focus:ring-brand" name="remember">
+                    <span class="text-sm text-body">Remember me</span>
                 </label>
 
                 @if (Route::has('password.request'))
-                    <a class="text-sm font-medium text-cyan-300 transition hover:text-cyan-200" href="{{ route('password.request') }}">
-                        {{ __('Forgot your password?') }}
+                    <a class="inline-flex min-h-11 items-center text-sm font-bold text-brand hover:text-brand-dark" href="{{ route('password.request') }}">
+                        Forgot password?
                     </a>
                 @endif
             </div>
 
-            <button type="submit" class="flex w-full items-center justify-center rounded-full bg-cyan-500 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400">
-                {{ __('Log in') }}
-            </button>
+            <x-primary-button class="w-full">
+                Sign in
+            </x-primary-button>
 
-            <div class="text-center text-sm text-slate-400">
+            <p class="text-center text-sm text-body">
                 New here?
-                <a class="ml-1 font-medium text-cyan-300 transition hover:text-cyan-200" href="{{ route('register') }}">
-                    Create an account
-                </a>
-            </div>
+                <a class="inline-flex min-h-11 items-center font-bold text-brand hover:text-brand-dark" href="{{ route('register') }}">Create an account</a>
+            </p>
         </form>
     </div>
 </x-guest-layout>
