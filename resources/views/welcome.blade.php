@@ -45,7 +45,6 @@
                     <nav class="-mx-3 flex flex-wrap items-center gap-1 md:mx-0" aria-label="Main">
                         <a href="#solutions" class="{{ $navLink }}">Solutions</a>
                         <a href="#process" class="{{ $navLink }}">Process</a>
-                        <a href="#contact" class="{{ $navLink }}">Contact</a>
                         <button type="button" @click="toggle" class="{{ $navLink }}">
                             <span x-text="theme === 'dark' ? 'Light mode' : 'Dark mode'">Dark mode</span>
                         </button>
@@ -108,38 +107,23 @@
                 </div>
             </section>
 
-            <div class="grid gap-6 lg:grid-cols-5">
-                <section id="process" class="scroll-mt-6 lg:col-span-3">
-                    <p class="text-sm font-semibold text-brand">How it works</p>
-                    <h2 class="mt-1 text-2xl font-extrabold text-ink">A structured verification process for modern lending teams</h2>
-                    <p class="mt-2 text-sm leading-6 text-body">Every loan application follows a clear review path from intake to decision, with responsible checks and complete visibility.</p>
+            <section id="process" class="max-w-3xl scroll-mt-6">
+                <p class="text-sm font-semibold text-brand">How it works</p>
+                <h2 class="mt-1 text-2xl font-extrabold text-ink">A structured verification process for modern lending teams</h2>
+                <p class="mt-2 text-sm leading-6 text-body">Every loan application follows a clear review path from intake to decision, with responsible checks and complete visibility.</p>
 
-                    <ol class="mt-5 space-y-3">
-                        @foreach ($process as $title => $text)
-                            <li class="flex items-start gap-4 rounded-2xl border border-slate-200 bg-white p-5">
-                                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand text-sm font-bold text-white">{{ $loop->iteration }}</span>
-                                <div>
-                                    <h3 class="text-base font-bold text-ink">{{ $title }}</h3>
-                                    <p class="mt-1 text-sm leading-6 text-body">{{ $text }}</p>
-                                </div>
-                            </li>
-                        @endforeach
-                    </ol>
-                </section>
-
-                <x-card id="contact" class="scroll-mt-6 self-start lg:col-span-2">
-                    <p class="text-sm font-semibold text-brand">Need a demo?</p>
-                    <h2 class="mt-1 text-xl font-extrabold text-ink">Talk to our lending operations team</h2>
-                    <p class="mt-2 text-sm leading-6 text-body">Book a consultation to see how the verification workflow can support your approval process.</p>
-
-                    <form class="mt-5 space-y-3">
-                        <x-text-input class="block w-full" placeholder="Full name" aria-label="Full name" />
-                        <x-text-input class="block w-full" placeholder="Work email" aria-label="Work email" />
-                        <x-text-input class="block w-full" placeholder="Company" aria-label="Company" />
-                        <x-primary-button class="w-full">Request demo</x-primary-button>
-                    </form>
-                </x-card>
-            </div>
+                <ol class="mt-5 space-y-3">
+                    @foreach ($process as $title => $text)
+                        <li class="flex items-start gap-4 rounded-2xl border border-slate-200 bg-white p-5">
+                            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand text-sm font-bold text-white">{{ $loop->iteration }}</span>
+                            <div>
+                                <h3 class="text-base font-bold text-ink">{{ $title }}</h3>
+                                <p class="mt-1 text-sm leading-6 text-body">{{ $text }}</p>
+                            </div>
+                        </li>
+                    @endforeach
+                </ol>
+            </section>
         </main>
 
         <footer class="border-t border-slate-200 px-4 py-8 text-center text-sm text-body md:px-8">
