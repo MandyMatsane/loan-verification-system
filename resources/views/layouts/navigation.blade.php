@@ -1,73 +1,71 @@
-<nav x-data="{ open: false }" class="border-b border-slate-200/70 bg-white/80 text-slate-900 backdrop-blur dark:border-slate-800/70 dark:bg-slate-950/90 dark:text-slate-100">
-    <div class="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <div class="flex items-center gap-4">
-            <a href="{{ route('dashboard') }}" class="text-lg font-semibold tracking-tight text-slate-900 dark:text-white">
-                Loan Verification <span class="text-cyan-500">System</span>
+@php
+    $user = Auth::user();
+    $isAdmin = $user->role === 'admin';
+
+    $items = $isAdmin
+        ? [
+            ['label' => 'Dashboard', 'short' => 'Dashboard', 'icon' => 'home', 'href' => route('dashboard'), 'active' => request()->routeIs('dashboard', 'admin.dashboard')],
+            ['label' => 'Applications', 'short' => 'Applications', 'icon' => 'list', 'href' => route('admin.applications.index'), 'active' => request()->routeIs('admin.applications.*')],
+            ['label' => 'Feature importance', 'short' => 'Insights', 'icon' => 'chart', 'href' => route('admin.feature-importance'), 'active' => request()->routeIs('admin.feature-importance')],
+            ['label' => 'Profile', 'short' => 'Profile', 'icon' => 'user', 'href' => route('profile.edit'), 'active' => request()->routeIs('profile.*')],
+        ]
+        : [
+            ['label' => 'Dashboard', 'short' => 'Home', 'icon' => 'home', 'href' => route('dashboard'), 'active' => request()->routeIs('dashboard', 'applications.show', 'applications.confirmation')],
+            ['label' => 'New application', 'short' => 'Apply', 'icon' => 'plus-circle', 'href' => route('applications.create'), 'active' => request()->routeIs('applications.create')],
+            ['label' => 'Profile', 'short' => 'Profile', 'icon' => 'user', 'href' => route('profile.edit'), 'active' => request()->routeIs('profile.*')],
+        ];
+
+    $initials = collect(preg_split('/\s+/', trim($user->name)))
+        ->filter()
+        ->take(2)
+        ->map(fn ($part) => mb_strtoupper(mb_substr($part, 0, 1)))
+        ->implode('');
+@endphp
+
+{{-- md and up: sidebar --}}
+<aside class="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col bg-brand-dark text-white md:flex">
+    <a href="{{ route('dashboard') }}" class="flex items-center px-5 py-6 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white">
+        <x-brand-mark />
+    </a>
+
+    <nav class="flex-1 space-y-1 overflow-y-auto px-3" aria-label="Main">
+        @foreach ($items as $item)
+            <a href="{{ $item['href'] }}" @if ($item['active']) aria-current="page" @endif
+               class="flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white {{ $item['active'] ? 'bg-white/15 font-bold text-white' : 'font-medium text-brand-mist hover:bg-brand hover:text-white' }}">
+                <x-icon :name="$item['icon']" />
+                {{ $item['label'] }}
             </a>
+        @endforeach
+    </nav>
 
-            <div class="hidden items-center gap-2 sm:flex">
-                <a href="{{ route('dashboard') }}" class="rounded-full px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-900 {{ request()->routeIs('dashboard') ? 'bg-cyan-100 text-cyan-700 dark:bg-cyan-500/10 dark:text-cyan-200' : 'dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white' }}">
-                    Dashboard
-                </a>
-                <a href="{{ url('/') }}" class="rounded-full px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white">
-                    Home
-                </a>
+    <div class="space-y-1 border-t border-white/10 p-3">
+        <button type="button" @click="toggle" class="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-medium text-brand-mist transition hover:bg-brand hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white">
+            <x-icon name="moon" />
+            <span x-text="theme === 'dark' ? 'Light mode' : 'Dark mode'">Dark mode</span>
+        </button>
+
+        <div class="flex items-center gap-3 px-3 pt-2">
+            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-sm font-bold text-brand-dark">{{ $initials }}</span>
+            <div class="min-w-0 flex-1">
+                <p class="truncate text-sm font-bold text-white">{{ $user->name }}</p>
+                <form method="POST" action="{{ route('logout') }}">
+                    @csrf
+                    <button type="submit" class="-ml-1 rounded px-1 py-1 text-sm text-brand-light transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white">
+                        Log out
+                    </button>
+                </form>
             </div>
-        </div>
-
-        <div class="hidden sm:flex sm:items-center sm:gap-3">
-            <button @click="toggle" class="rounded-full border border-slate-200/70 bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-200 dark:border-slate-700/70 dark:bg-slate-800/70 dark:text-slate-200 dark:hover:bg-slate-700">
-                <span x-text="theme === 'dark' ? 'Light mode' : 'Dark mode'"></span>
-            </button>
-
-            <div class="rounded-full border border-slate-200/70 bg-slate-100 px-3 py-2 text-sm text-slate-700 dark:border-slate-700/70 dark:bg-slate-800/70 dark:text-slate-200">
-                {{ Auth::user()->name }}
-            </div>
-
-            <a href="{{ route('profile.edit') }}" class="rounded-full border border-slate-200/70 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700/70 dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-white">
-                Profile
-            </a>
-
-            <form method="POST" action="{{ route('logout') }}">
-                @csrf
-                <button type="submit" class="rounded-full bg-cyan-500 px-3 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400">
-                    Log out
-                </button>
-            </form>
-        </div>
-
-        <div class="-mr-2 flex items-center sm:hidden">
-            <button @click="open = ! open" class="inline-flex items-center justify-center rounded-md p-2 text-slate-300 transition hover:bg-white/10 hover:text-white">
-                <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
-                    <path :class="{'hidden': open, 'inline-flex': ! open }" class="inline-flex" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-                    <path :class="{'hidden': ! open, 'inline-flex': open }" class="hidden" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-            </button>
         </div>
     </div>
+</aside>
 
-    <div :class="{'block': open, 'hidden': ! open}" class="hidden border-t border-white/10 bg-slate-900/90 sm:hidden">
-        <div class="space-y-1 px-4 py-3">
-            <a href="{{ route('dashboard') }}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-300 transition hover:bg-white/10 hover:text-white">
-                Dashboard
-            </a>
-            <a href="{{ url('/') }}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-300 transition hover:bg-white/10 hover:text-white">
-                Home
-            </a>
-            <a href="{{ route('profile.edit') }}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white">
-                Profile
-            </a>
-            <div class="mt-1 flex items-center gap-3 px-3 py-2">
-                <button @click="toggle" class="w-full rounded-xl border border-slate-200/70 bg-slate-100 px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-200 dark:border-slate-700/70 dark:bg-slate-800/70 dark:text-slate-200 dark:hover:bg-slate-700">
-                    <span x-text="theme === 'dark' ? 'Light mode' : 'Dark mode'"></span>
-                </button>
-            </div>
-            <form method="POST" action="{{ route('logout') }}" class="pt-1">
-                @csrf
-                <button type="submit" class="w-full rounded-xl bg-cyan-500 px-3 py-2 text-left text-sm font-semibold text-slate-950 transition hover:bg-cyan-400">
-                    Log out
-                </button>
-            </form>
-        </div>
-    </div>
+{{-- below md: bottom tab bar --}}
+<nav class="fixed inset-x-0 bottom-0 z-30 flex border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] md:hidden" aria-label="Main">
+    @foreach ($items as $item)
+        <a href="{{ $item['href'] }}" @if ($item['active']) aria-current="page" @endif
+           class="flex min-h-14 flex-1 flex-col items-center justify-center gap-1 px-1 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand {{ $item['active'] ? 'font-bold text-brand' : 'font-medium text-slate-500' }}">
+            <x-icon :name="$item['icon']" class="h-6 w-6" />
+            {{ $item['short'] }}
+        </a>
+    @endforeach
 </nav>

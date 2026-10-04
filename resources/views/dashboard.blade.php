@@ -19,22 +19,22 @@
         @if ($isAdmin)
             <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                    <p class="text-sm font-medium uppercase tracking-[0.3em] text-cyan-300">Operations overview</p>
-                    <h2 class="text-2xl font-semibold text-white">Welcome back, {{ $user->name }}.</h2>
+                    <p class="text-sm font-medium uppercase tracking-[0.3em] text-brand">Operations overview</p>
+                    <h2 class="text-2xl font-semibold text-ink">Welcome back, {{ $user->name }}.</h2>
                 </div>
                 <div
-                    class="rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-1 text-sm font-medium text-cyan-200">
+                    class="rounded-full border border-brand-mist bg-brand-tint px-3 py-1 text-sm font-medium text-brand-dark">
                     Secure workspace ready
                 </div>
             </div>
         @else
             <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                    <p class="text-sm font-medium uppercase tracking-[0.3em] text-emerald-300">Applicant dashboard</p>
-                    <h2 class="text-2xl font-semibold text-white">Welcome back, {{ $user->name }}.</h2>
+                    <p class="text-sm font-medium uppercase tracking-[0.3em] text-brand">Applicant dashboard</p>
+                    <h2 class="text-2xl font-semibold text-ink">Welcome back, {{ $user->name }}.</h2>
                 </div>
                 <div
-                    class="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-sm font-medium text-emerald-200">
+                    class="rounded-full border border-brand-mist bg-brand-tint px-3 py-1 text-sm font-medium text-brand-dark">
                     Ready to apply
                 </div>
             </div>
