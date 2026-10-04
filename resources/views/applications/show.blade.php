@@ -1,62 +1,106 @@
 <x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            Application #{{ $application->id }}
-        </h2>
-    </x-slot>
+    @php
+        $money = fn ($value) => 'R' . number_format((float) ($value ?? 0), 2);
 
-    <div class="py-12">
-        <div class="max-w-xl mx-auto sm:px-6 lg:px-8 space-y-6">
+        $documentLabels = ['id_document' => 'ID document', 'payslip' => 'Payslip', 'bank_statement' => 'Bank statement'];
 
-            @if (session('success'))
-                <div class="bg-green-100 text-green-700 p-3 rounded-md">
-                    {{ session('success') }}
-                </div>
-            @endif
+        $details = [
+            'Amount requested' => $money($application->amount_requested),
+            'Loan term' => $application->loan_term !== null ? $application->loan_term . ' months' : '-',
+            'Dependents' => $application->no_of_dependents ?? '-',
+            'Education' => $application->education ?? '-',
+            'Credit score band' => $application->cibil_score_band ?? '-',
+            'Residential assets' => $money($application->residential_assets_value),
+            'Commercial assets' => $money($application->commercial_assets_value),
+            'Luxury assets' => $money($application->luxury_assets_value),
+            'Bank assets' => $money($application->bank_asset_value),
+            'Submitted' => $application->created_at?->format('j M Y') ?? '-',
+        ];
 
-            <div class="bg-white p-6 shadow sm:rounded-lg">
-                <p><strong>Amount Requested:</strong> R{{ number_format($application->amount_requested, 2) }}</p>
-                <p><strong>Status:</strong> {{ $application->status }}</p>
+        // stored as "{type}-{uuid}-{original name}": show the original name only
+        $fileName = fn ($document) => preg_replace('/^' . preg_quote($document->type, '/') . '-[0-9a-f-]{36}-/i', '', basename($document->file_path));
+    @endphp
+
+    <div class="space-y-6">
+        <x-page-header eyebrow="Dashboard / Application #{{ $application->id }}" title="Application #{{ $application->id }}">
+            <x-slot name="badge">
+                <x-status-badge :status="$application->status" />
+            </x-slot>
+            <x-slot name="actions">
+                <x-button-link variant="outline" href="{{ route('dashboard') }}">
+                    <x-icon name="chevron-left" />
+                    Back to dashboard
+                </x-button-link>
+            </x-slot>
+        </x-page-header>
+
+        @if (session('success'))
+            <div class="rounded-2xl border border-green-200 bg-green-100 px-5 py-4 text-sm font-semibold text-green-800" role="status">
+                {{ session('success') }}
+            </div>
+        @endif
+
+        <div class="grid gap-6 xl:grid-cols-3">
+            <div class="min-w-0 space-y-6 xl:col-span-2">
+                <x-card title="Loan details">
+                    <dl class="grid grid-cols-2 gap-x-4 gap-y-5 md:grid-cols-3">
+                        @foreach ($details as $label => $value)
+                            <div>
+                                <dt class="text-xs text-slate-500">{{ $label }}</dt>
+                                <dd class="mt-0.5 text-sm font-bold text-ink">{{ $value }}</dd>
+                            </div>
+                        @endforeach
+                    </dl>
+                </x-card>
+
+                <x-card title="Uploaded documents">
+                    @forelse ($application->documents as $document)
+                        <div class="flex items-center gap-3 {{ $loop->first ? '' : 'mt-3' }}">
+                            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-brand">
+                                <x-icon name="document" />
+                            </span>
+                            <span class="min-w-0">
+                                <span class="block text-sm font-bold text-ink">{{ $documentLabels[$document->type] ?? ucfirst(str_replace('_', ' ', $document->type)) }}</span>
+                                <span class="block truncate text-xs text-body">{{ $fileName($document) }} - uploaded {{ \Illuminate\Support\Carbon::parse($document->uploaded_at)->format('j M Y') }}</span>
+                            </span>
+                        </div>
+                    @empty
+                        <p class="text-sm text-body">No documents uploaded yet.</p>
+                    @endforelse
+                </x-card>
             </div>
 
-            <div class="bg-white p-6 shadow sm:rounded-lg">
-                <h3 class="font-semibold mb-4">Upload a Document</h3>
+            <div class="space-y-6">
+                <x-card title="Result">
+                    <x-status-badge :status="$application->status" />
+                    <x-confidence-bar class="mt-4" :score="$application->aiAssessment?->confidence_score" />
+                </x-card>
 
-                <form method="POST" action="{{ route('applications.documents.store', $application) }}" enctype="multipart/form-data">
-                    @csrf
+                <x-card title="Upload a document">
+                    <form method="POST" action="{{ route('applications.documents.store', $application) }}" enctype="multipart/form-data" class="space-y-4">
+                        @csrf
 
-                    <div class="mb-4">
-                        <label class="block font-medium text-sm text-gray-700">Document Type</label>
-                        <select name="type" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
-                            <option value="id">ID Document</option>
-                            <option value="payslip">Payslip</option>
-                            <option value="bank_statement">Bank Statement</option>
-                        </select>
-                    </div>
+                        <div>
+                            <x-input-label for="type" value="Document type" />
+                            <select id="type" name="type" class="mt-2 block min-h-12 w-full rounded-xl border-slate-300 bg-white px-4 text-ink focus:border-brand focus:ring-brand">
+                                <option value="id_document" {{ old('type') == 'id_document' ? 'selected' : '' }}>ID document</option>
+                                <option value="payslip" {{ old('type') == 'payslip' ? 'selected' : '' }}>Payslip</option>
+                                <option value="bank_statement" {{ old('type') == 'bank_statement' ? 'selected' : '' }}>Bank statement</option>
+                            </select>
+                            <x-input-error :messages="$errors->get('type')" class="mt-2" />
+                        </div>
 
-                    <div class="mb-4">
-                        <label class="block font-medium text-sm text-gray-700">File (PDF, JPG, PNG — max 5MB)</label>
-                        <input type="file" name="file" class="mt-1 block w-full">
-                        @error('file')
-                            <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
-                        @enderror
-                    </div>
+                        <div>
+                            <x-input-label for="file" value="File (JPG or PNG, max 5MB)" />
+                            <input id="file" type="file" name="file" accept=".jpg,.jpeg,.png"
+                                   class="mt-2 block w-full rounded-xl border-2 border-dashed border-brand p-2 text-sm text-body file:mr-3 file:min-h-11 file:cursor-pointer file:rounded-xl file:border-0 file:bg-brand-tint file:px-4 file:text-sm file:font-bold file:text-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2">
+                            <x-input-error :messages="$errors->get('file')" class="mt-2" />
+                        </div>
 
-                    <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-md">
-                        Upload
-                    </button>
-                </form>
+                        <x-primary-button class="w-full">Upload</x-primary-button>
+                    </form>
+                </x-card>
             </div>
-
-            <div class="bg-white p-6 shadow sm:rounded-lg">
-                <h3 class="font-semibold mb-4">Uploaded Documents</h3>
-                @forelse ($application->documents as $document)
-                    <p>{{ $document->type }} — uploaded {{ $document->uploaded_at }}</p>
-                @empty
-                    <p class="text-gray-500">No documents uploaded yet.</p>
-                @endforelse
-            </div>
-
         </div>
     </div>
 </x-app-layout>

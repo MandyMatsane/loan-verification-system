@@ -1,10 +1,10 @@
 <section>
     <header>
-        <h2 class="text-lg font-medium text-gray-900">
+        <h2 class="text-base font-bold text-ink">
             {{ __('Applicant profile') }}
         </h2>
 
-        <p class="mt-1 text-sm text-gray-600">
+        <p class="mt-1 text-sm leading-6 text-body">
             {{ __('Complete your applicant profile so your loan verification can proceed smoothly.') }}
         </p>
     </header>
@@ -30,16 +30,16 @@
 
             @if ($user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail && ! $user->hasVerifiedEmail())
                 <div>
-                    <p class="text-sm mt-2 text-gray-800">
+                    <p class="mt-2 text-sm text-body">
                         {{ __('Your email address is unverified.') }}
 
-                        <button form="send-verification" class="underline text-sm text-gray-600 hover:text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        <button form="send-verification" class="inline-flex min-h-11 items-center rounded-md text-sm font-bold text-brand underline hover:text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2">
                             {{ __('Click here to re-send the verification email.') }}
                         </button>
                     </p>
 
                     @if (session('status') === 'verification-link-sent')
-                        <p class="mt-2 font-medium text-sm text-green-600">
+                        <p class="mt-2 text-sm font-semibold text-green-800">
                             {{ __('A new verification link has been sent to your email address.') }}
                         </p>
                     @endif
@@ -77,7 +77,7 @@
 
         <div>
             <x-input-label for="address" :value="__('Address')" />
-            <textarea id="address" name="address" rows="4" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="Street address, city, province">{{ old('address', $user->address) }}</textarea>
+            <textarea id="address" name="address" rows="4" class="mt-1 block w-full rounded-xl border-slate-300 bg-white px-4 py-3 text-ink placeholder:text-slate-500 focus:border-brand focus:ring-brand" placeholder="Street address, city, province">{{ old('address', $user->address) }}</textarea>
             <x-input-error class="mt-2" :messages="$errors->get('address')" />
         </div>
 
@@ -96,7 +96,7 @@
                     x-show="show"
                     x-transition
                     x-init="setTimeout(() => show = false, 2000)"
-                    class="text-sm text-gray-600"
+                    class="text-sm font-semibold text-green-800"
                 >{{ __('Saved.') }}</p>
             @endif
         </div>
