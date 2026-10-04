@@ -13,6 +13,7 @@
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
     <body x-data="theme()" :class="themeClass" class="min-h-screen bg-surface font-sans text-body antialiased">
+        <script>if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark');</script>
         <div class="absolute inset-0 -z-10 hidden overflow-hidden dark:block">
             <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.18),_transparent_35%),radial-gradient(circle_at_bottom_right,_rgba(16,185,129,0.14),_transparent_35%)]"></div>
         </div>

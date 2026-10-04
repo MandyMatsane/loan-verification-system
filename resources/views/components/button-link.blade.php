@@ -3,7 +3,7 @@
 @php
     $classes = match ($variant) {
         'outline' => 'border-brand bg-white text-brand hover:bg-brand-tint focus-visible:ring-brand',
-        'white' => 'border-transparent bg-white text-brand-dark hover:bg-brand-tint focus-visible:ring-white focus-visible:ring-offset-brand-dark',
+        'white' => 'border-transparent bg-paper text-brand-dark hover:bg-brand-mist focus-visible:ring-white focus-visible:ring-offset-brand-dark',
         default => 'border-transparent bg-brand text-white hover:bg-brand-dark focus-visible:ring-brand',
     };
 @endphp

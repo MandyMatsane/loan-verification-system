@@ -40,12 +40,13 @@
 
     <div class="space-y-1 border-t border-white/10 p-3">
         <button type="button" @click="toggle" class="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-medium text-brand-mist transition hover:bg-brand hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white">
-            <x-icon name="moon" />
+            <x-icon name="moon" x-show="theme !== 'dark'" />
+            <x-icon name="sun" x-show="theme === 'dark'" x-cloak />
             <span x-text="theme === 'dark' ? 'Light mode' : 'Dark mode'">Dark mode</span>
         </button>
 
         <div class="flex items-center gap-3 px-3 pt-2">
-            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-sm font-bold text-brand-dark">{{ $initials }}</span>
+            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-paper text-sm font-bold text-brand-dark">{{ $initials }}</span>
             <div class="min-w-0 flex-1">
                 <p class="truncate text-sm font-bold text-white">{{ $user->name }}</p>
                 <form method="POST" action="{{ route('logout') }}">

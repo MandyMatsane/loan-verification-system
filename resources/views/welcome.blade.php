@@ -11,6 +11,7 @@
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
     <body x-data="theme()" :class="themeClass" class="min-h-screen bg-surface font-sans text-body antialiased">
+        <script>if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark');</script>
         @php
             $navLink = 'inline-flex min-h-11 items-center rounded-xl px-3 text-sm font-medium text-brand-mist transition hover:bg-brand hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white';
 
@@ -45,7 +46,9 @@
                     <nav class="-mx-3 flex flex-wrap items-center gap-1 md:mx-0" aria-label="Main">
                         <a href="#solutions" class="{{ $navLink }}">Solutions</a>
                         <a href="#process" class="{{ $navLink }}">Process</a>
-                        <button type="button" @click="toggle" class="{{ $navLink }}">
+                        <button type="button" @click="toggle" class="{{ $navLink }} gap-2">
+                            <x-icon name="moon" x-show="theme !== 'dark'" />
+                            <x-icon name="sun" x-show="theme === 'dark'" x-cloak />
                             <span x-text="theme === 'dark' ? 'Light mode' : 'Dark mode'">Dark mode</span>
                         </button>
                         @auth
@@ -107,22 +110,44 @@
                 </div>
             </section>
 
-            <section id="process" class="max-w-3xl scroll-mt-6">
-                <p class="text-sm font-semibold text-brand">How it works</p>
-                <h2 class="mt-1 text-2xl font-extrabold text-ink">A structured verification process for modern lending teams</h2>
-                <p class="mt-2 text-sm leading-6 text-body">Every loan application follows a clear review path from intake to decision, with responsible checks and complete visibility.</p>
+            <section id="process" class="scroll-mt-6">
+                <div class="max-w-2xl">
+                    <p class="text-sm font-semibold text-brand">How it works</p>
+                    <h2 class="mt-1 text-2xl font-extrabold text-ink">A structured verification process for modern lending teams</h2>
+                    <p class="mt-2 text-sm leading-6 text-body">Every loan application follows a clear review path from intake to decision, with responsible checks and complete visibility.</p>
+                </div>
 
-                <ol class="mt-5 space-y-3">
+                <ol class="relative mt-8 grid gap-4 md:grid-cols-3 md:gap-6">
+                    {{-- line joining the three steps on wide screens --}}
+                    <li class="absolute left-[16.66%] right-[16.66%] top-6 hidden h-0.5 bg-brand-mist md:block" aria-hidden="true"></li>
+
                     @foreach ($process as $title => $text)
-                        <li class="flex items-start gap-4 rounded-2xl border border-slate-200 bg-white p-5">
-                            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand text-sm font-bold text-white">{{ $loop->iteration }}</span>
-                            <div>
+                        <li class="relative flex items-start gap-4 rounded-2xl border border-slate-200 bg-white p-5 md:flex-col md:items-center md:border-0 md:bg-transparent md:p-0 md:text-center">
+                            <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-brand text-base font-extrabold text-white ring-8 ring-surface">{{ $loop->iteration }}</span>
+                            <div class="md:w-full md:rounded-2xl md:border md:border-slate-200 md:bg-white md:p-5">
                                 <h3 class="text-base font-bold text-ink">{{ $title }}</h3>
                                 <p class="mt-1 text-sm leading-6 text-body">{{ $text }}</p>
                             </div>
                         </li>
                     @endforeach
                 </ol>
+            </section>
+
+            <section class="flex flex-col gap-5 rounded-2xl bg-brand-dark p-6 text-white md:flex-row md:items-center md:justify-between md:p-8">
+                <div class="max-w-xl">
+                    <h2 class="text-2xl font-extrabold text-white">Ready to start your application?</h2>
+                    <p class="mt-2 text-sm leading-6 text-brand-mist">Upload your documents once. We read them, check them and give you a clear result.</p>
+                </div>
+                <div class="flex flex-col gap-3 sm:flex-row">
+                    @auth
+                        <x-button-link variant="white" href="{{ url('/dashboard') }}">Go to dashboard</x-button-link>
+                    @else
+                        @if (Route::has('register'))
+                            <x-button-link variant="white" href="{{ route('register') }}">Create account</x-button-link>
+                        @endif
+                        <a href="{{ route('login') }}" class="inline-flex min-h-12 items-center justify-center rounded-xl border border-white px-5 py-2 text-sm font-bold text-white transition hover:bg-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-white">Sign in</a>
+                    @endauth
+                </div>
             </section>
         </main>
 

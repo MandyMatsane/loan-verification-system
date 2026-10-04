@@ -8,7 +8,7 @@
                 'headline' => 'Application approved',
                 'line' => 'Your result is ready.',
                 'icon' => 'check',
-                'circle' => 'bg-success text-ink',
+                'circle' => 'bg-success text-slate-900',
                 'banner' => 'border-green-200 bg-green-100 text-green-800',
             ],
             'manual review' => [

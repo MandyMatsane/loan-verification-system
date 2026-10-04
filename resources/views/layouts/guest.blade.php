@@ -13,6 +13,7 @@
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
     <body x-data="theme()" :class="themeClass" class="min-h-screen bg-surface font-sans text-body antialiased">
+        <script>if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark');</script>
         <div class="flex min-h-screen flex-col md:flex-row">
             {{-- Teal panel: header block on phones, left panel from md up --}}
             <div class="bg-brand-dark px-6 py-6 text-white md:flex md:w-1/2 md:flex-col md:px-8 md:py-10 lg:w-[45%] lg:px-12">
@@ -21,7 +22,8 @@
                         <x-brand-mark />
                     </a>
                     <button type="button" @click="toggle" class="inline-flex min-h-11 items-center gap-2 whitespace-nowrap rounded-xl px-3 text-sm font-medium text-brand-light transition hover:bg-brand hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white">
-                        <x-icon name="moon" />
+                        <x-icon name="moon" x-show="theme !== 'dark'" />
+                        <x-icon name="sun" x-show="theme === 'dark'" x-cloak />
                         <span x-text="theme === 'dark' ? 'Light mode' : 'Dark mode'">Dark mode</span>
                     </button>
                 </div>
@@ -35,7 +37,7 @@
                     <ul class="mt-8 hidden space-y-4 md:block">
                         @foreach (['Upload your documents once', 'Automatic checks, clear results', 'A person reviews unclear cases'] as $point)
                             <li class="flex items-center gap-3 text-sm font-medium text-white">
-                                <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-light text-ink">
+                                <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-light text-slate-900">
                                     <x-icon name="check" class="h-4 w-4" />
                                 </span>
                                 {{ $point }}

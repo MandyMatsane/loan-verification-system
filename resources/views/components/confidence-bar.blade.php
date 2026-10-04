@@ -15,7 +15,7 @@
     <div class="relative mt-2">
         <div class="h-2 overflow-hidden rounded-full {{ $onDark ? 'bg-white/20' : 'bg-slate-200' }}"
              role="progressbar" aria-label="{{ $label }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ $value }}">
-            <div class="h-full rounded-full {{ $onDark ? 'bg-white' : 'bg-brand' }}" style="width: {{ $value }}%"></div>
+            <div class="h-full rounded-full {{ $onDark ? 'bg-paper' : 'bg-brand' }}" style="width: {{ $value }}%"></div>
         </div>
         <div class="absolute -top-1 h-4 w-0.5 {{ $onDark ? 'bg-brand-light' : 'bg-ink' }}" style="left: 70%" aria-hidden="true"></div>
     </div>

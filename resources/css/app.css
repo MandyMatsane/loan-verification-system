@@ -5,3 +5,136 @@
 [x-cloak] {
     display: none !important;
 }
+
+/* Theme tokens: surface, ink, body and brand-tint switch with the theme */
+:root {
+    --c-surface: 248 250 252;
+    --c-ink: 15 23 42;
+    --c-body: 71 85 105;
+    --c-tint: 230 244 242;
+}
+
+.dark {
+    --c-surface: 11 18 32;
+    --c-ink: 241 245 249;
+    --c-body: 203 213 225;
+    --c-tint: 19 78 74;
+    color-scheme: dark;
+}
+
+/*
+ * Dark theme: the views are written for light mode, so the remaining
+ * light-only utilities are remapped here in one place.
+ */
+.dark * {
+    --tw-ring-offset-color: #0b1220;
+}
+
+/* cards, inputs, tab bar */
+.dark .bg-white {
+    background-color: #172033;
+}
+
+.dark .bg-slate-100,
+.dark .disabled\:bg-slate-100:disabled {
+    background-color: #0f172a;
+}
+
+.dark .bg-slate-200,
+.dark .bg-slate-300,
+.dark .hover\:bg-slate-200:hover,
+.dark .disabled\:bg-slate-200:disabled {
+    background-color: #334155;
+}
+
+.dark .border-slate-200,
+.dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
+    border-color: #2a3650;
+}
+
+.dark .border-slate-300 {
+    border-color: #475569;
+}
+
+.dark .text-slate-500,
+.dark .disabled\:text-slate-500:disabled {
+    color: #94a3b8;
+}
+
+.dark .placeholder\:text-slate-500::placeholder {
+    color: #94a3b8;
+}
+
+.dark .text-slate-600,
+.dark .text-slate-700 {
+    color: #cbd5e1;
+}
+
+/* brand text and links need a lighter teal on dark surfaces */
+.dark .text-brand,
+.dark .hover\:text-brand:hover,
+.dark .file\:text-brand::file-selector-button {
+    color: #5eead4;
+}
+
+.dark .hover\:text-brand-dark:hover {
+    color: #99f6e4;
+}
+
+.dark .border-brand {
+    border-color: #2dd4bf;
+}
+
+/* status pills, banners and notes: deep tint with light text */
+.dark .bg-green-100 {
+    background-color: #14532d;
+}
+
+.dark .text-green-800 {
+    color: #bbf7d0;
+}
+
+.dark .border-green-200 {
+    border-color: #166534;
+}
+
+.dark .bg-amber-100 {
+    background-color: #713f12;
+}
+
+.dark .text-amber-800 {
+    color: #fde68a;
+}
+
+.dark .border-amber-200 {
+    border-color: #92400e;
+}
+
+.dark .bg-red-100 {
+    background-color: #7f1d1d;
+}
+
+.dark .text-red-800,
+.dark .text-red-700 {
+    color: #fecaca;
+}
+
+.dark .border-red-200 {
+    border-color: #991b1b;
+}
+
+@media (min-width: 768px) {
+    .dark .md\:bg-white {
+        background-color: #172033;
+    }
+
+    .dark .md\:border-slate-200 {
+        border-color: #2a3650;
+    }
+}
+
+@media (min-width: 768px) {
+    .dark .md\:bg-transparent {
+        background-color: transparent;
+    }
+}
