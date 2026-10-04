@@ -53,7 +53,7 @@
                         @else
                             <a href="{{ route('login') }}" class="{{ $navLink }}">Sign in</a>
                             @if (Route::has('register'))
-                                <x-button-link variant="white" href="{{ route('register') }}" class="ml-3 md:ml-2">Book demo</x-button-link>
+                                <x-button-link variant="white" href="{{ route('register') }}" class="ml-3 md:ml-2">Create account</x-button-link>
                             @endif
                         @endauth
                     </nav>
