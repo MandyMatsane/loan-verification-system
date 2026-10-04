@@ -15,9 +15,8 @@
         'bank_asset_value' => 'Bank assets',
     ];
 
-    // importance is already a percentage
+    // importance is already a percentage, so it is also the bar width
     $rows = collect($items)->sortByDesc('importance')->values();
-    $max = max((float) $rows->max('importance'), 0.0001);
 
     if ($limit) {
         $rows = $rows->take($limit);
@@ -37,7 +36,7 @@
                 <span class="tabular-nums text-body">{{ number_format($value, 1) }}%</span>
             </div>
             <div class="mt-1.5 overflow-hidden rounded-full bg-slate-200 {{ $thin ? 'h-1.5' : 'h-3' }}">
-                <div class="h-full rounded-full bg-brand" style="width: {{ round($value / $max * 100, 2) }}%"></div>
+                <div class="h-full rounded-full bg-brand" style="width: {{ max(0, min(100, round($value, 2))) }}%"></div>
             </div>
         </li>
     @endforeach
