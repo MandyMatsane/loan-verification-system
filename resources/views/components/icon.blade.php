@@ -1,6 +1,11 @@
 @props(['name'])
 
-<svg {{ $attributes->merge(['class' => 'h-5 w-5 shrink-0']) }} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+@php
+    // default size only when the caller has not set one
+    $size = preg_match('/(^|\s)h-\d/', (string) $attributes->get('class')) ? '' : 'h-5 w-5 ';
+@endphp
+
+<svg {{ $attributes->merge(['class' => $size . 'shrink-0']) }} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     @switch($name)
         @case('home')
             <path d="M3 11.5 12 4l9 7.5" /><path d="M5 10v10h5v-6h4v6h5V10" />
@@ -28,6 +33,9 @@
             @break
         @case('check')
             <path d="m5 13 4 4L19 7" />
+            @break
+        @case('x')
+            <path d="M6 6l12 12M18 6 6 18" />
             @break
         @case('upload')
             <path d="M12 16V4M8 8l4-4 4 4M4 20h16" />
