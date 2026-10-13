@@ -12,7 +12,8 @@ class ApplicationController extends Controller
     public function dashboard(MlPredictionService $mlPredictionService)
     {
         $applications = LoanApplication::with('user', 'aiAssessment')->latest()->get();
-        $featureImportance = $mlPredictionService->getFeatureImportance();
+        // short timeout: the dashboard must not wait for a sleeping ML service
+        $featureImportance = $mlPredictionService->getFeatureImportance(5);
 
         return view('admin.applications.dashboard', compact('applications', 'featureImportance'));
     }

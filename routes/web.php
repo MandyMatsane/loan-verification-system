@@ -19,7 +19,7 @@ Route::get('/dashboard', function () {
 
     if ($user && $user->role === 'admin') {
         $applications = LoanApplication::with('user', 'aiAssessment')->latest()->get();
-        $featureImportance = app(MlPredictionService::class)->getFeatureImportance();
+        $featureImportance = app(MlPredictionService::class)->getFeatureImportance(5); // short timeout: the dashboard must not wait
     } elseif ($user) {
         // read-only view data: the applicant's own applications
         $applications = LoanApplication::with('aiAssessment')->where('user_id', $user->id)->latest()->get();

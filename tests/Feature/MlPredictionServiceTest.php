@@ -7,6 +7,7 @@ use App\Models\LoanApplication;
 use App\Models\User;
 use App\Services\MlPredictionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
@@ -194,5 +195,53 @@ class MlPredictionServiceTest extends TestCase
         $this->actingAs($admin)->get('/admin/dashboard')
             ->assertOk()
             ->assertSee('The prediction service is waking up. Refresh in a minute.');
+    }
+
+    public function test_dashboards_use_a_short_timeout_and_say_the_service_is_waking_up_when_it_times_out(): void
+    {
+        $timeouts = [];
+
+        Http::fake(function ($request, array $options) use (&$timeouts) {
+            $timeouts[] = $options['timeout'];
+
+            throw new ConnectionException('cURL error 28: Operation timed out');
+        });
+
+        /** @var User $admin */
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        foreach (['/dashboard', '/admin/dashboard'] as $uri) {
+            $this->actingAs($admin)->get($uri)
+                ->assertOk()
+                ->assertSee('The prediction service is waking up. Refresh in a minute.');
+        }
+
+        // neither timed-out call was cached, so each page asked the service
+        $this->assertSame([5, 5], $timeouts);
+    }
+
+    public function test_feature_importance_page_waits_up_to_90_seconds(): void
+    {
+        $timeouts = [];
+
+        Http::fake(function ($request, array $options) use (&$timeouts) {
+            $timeouts[] = $options['timeout'];
+
+            return Http::response(['features' => [['feature' => 'cibil_score', 'importance' => 79.8]]], 200);
+        });
+
+        /** @var User $admin */
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($admin)->get(route('admin.feature-importance'))
+            ->assertOk()
+            ->assertSee('CIBIL score');
+
+        $this->assertSame([90], $timeouts);
+
+        // the successful result is cached, so the dashboard does not call the service again
+        $this->actingAs($admin)->get('/admin/dashboard')->assertOk()->assertSee('CIBIL score');
+
+        $this->assertSame([90], $timeouts);
     }
 }

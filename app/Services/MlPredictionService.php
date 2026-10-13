@@ -11,7 +11,7 @@ use Throwable;
 
 class MlPredictionService
 {
-    public function getFeatureImportance(): array
+    public function getFeatureImportance(int $timeout = 90): array
     {
         $cached = Cache::get('ml_feature_importance');
 
@@ -19,7 +19,7 @@ class MlPredictionService
             return $cached;
         }
 
-        $featureImportance = $this->fetchFeatureImportance();
+        $featureImportance = $this->fetchFeatureImportance($timeout);
 
         // only cache a successful, non-empty result so a sleeping service is retried
         if ($featureImportance !== []) {
@@ -29,14 +29,15 @@ class MlPredictionService
         return $featureImportance;
     }
 
-    protected function fetchFeatureImportance(): array
+    protected function fetchFeatureImportance(int $timeout): array
     {
         $baseUrl = rtrim(config('services.ml_service.url', 'http://localhost:8000'), '/');
         $url = $baseUrl . '/api/ml/feature-importance';
 
         try {
-            // the service on Render's free tier can take over a minute to wake
-            $response = Http::timeout(90)
+            // the service on Render's free tier can take over a minute to wake,
+            // so callers that cannot wait pass a shorter timeout
+            $response = Http::timeout($timeout)
                 ->acceptJson()
                 ->get($url);
 
