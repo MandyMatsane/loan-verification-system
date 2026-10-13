@@ -13,54 +13,71 @@ class MlPredictionService
 {
     public function getFeatureImportance(): array
     {
-        return Cache::remember('ml_feature_importance', 300, function () {
-            $baseUrl = rtrim(config('services.ml_service.url', 'http://localhost:8000'), '/');
-            $url = $baseUrl . '/api/ml/feature-importance';
+        $cached = Cache::get('ml_feature_importance');
 
-            try {
-                $response = Http::timeout(15)
-                    ->acceptJson()
-                    ->get($url);
+        if (is_array($cached) && $cached !== []) {
+            return $cached;
+        }
 
-                if (! $response->successful()) {
-                    Log::warning('ML feature importance request failed.', [
-                        'status' => $response->status(),
-                        'body' => $response->body(),
-                    ]);
+        $featureImportance = $this->fetchFeatureImportance();
 
-                    return [];
-                }
+        // only cache a successful, non-empty result so a sleeping service is retried
+        if ($featureImportance !== []) {
+            Cache::put('ml_feature_importance', $featureImportance, 300);
+        }
 
-                $payload = $response->json();
-                $items = $payload['features'] ?? $payload['data'] ?? $payload ?? [];
+        return $featureImportance;
+    }
 
-                if (! is_array($items)) {
-                    return [];
-                }
+    protected function fetchFeatureImportance(): array
+    {
+        $baseUrl = rtrim(config('services.ml_service.url', 'http://localhost:8000'), '/');
+        $url = $baseUrl . '/api/ml/feature-importance';
 
-                $normalized = [];
+        try {
+            // the service on Render's free tier can take over a minute to wake
+            $response = Http::timeout(90)
+                ->acceptJson()
+                ->get($url);
 
-                foreach ($items as $item) {
-                    $feature = $item['feature'] ?? $item['feature_name'] ?? $item['name'] ?? 'Unknown';
-                    $importance = $item['importance'] ?? $item['importance_score'] ?? $item['value'] ?? 0;
-
-                    $normalized[] = [
-                        'feature' => (string) $feature,
-                        'importance' => (float) $importance,
-                    ];
-                }
-
-                usort($normalized, fn($a, $b) => $b['importance'] <=> $a['importance']);
-
-                return $normalized;
-            } catch (Throwable $e) {
-                Log::error('ML feature importance service is unreachable.', [
-                    'message' => $e->getMessage(),
+            if (! $response->successful()) {
+                Log::warning('ML feature importance request failed.', [
+                    'status' => $response->status(),
+                    'body' => $response->body(),
                 ]);
 
                 return [];
             }
-        });
+
+            $payload = $response->json();
+            $items = $payload['features'] ?? $payload['data'] ?? $payload ?? [];
+
+            if (! is_array($items)) {
+                return [];
+            }
+
+            $normalized = [];
+
+            foreach ($items as $item) {
+                $feature = $item['feature'] ?? $item['feature_name'] ?? $item['name'] ?? 'Unknown';
+                $importance = $item['importance'] ?? $item['importance_score'] ?? $item['value'] ?? 0;
+
+                $normalized[] = [
+                    'feature' => (string) $feature,
+                    'importance' => (float) $importance,
+                ];
+            }
+
+            usort($normalized, fn($a, $b) => $b['importance'] <=> $a['importance']);
+
+            return $normalized;
+        } catch (Throwable $e) {
+            Log::error('ML feature importance service is unreachable.', [
+                'message' => $e->getMessage(),
+            ]);
+
+            return [];
+        }
     }
 
     public function predict(LoanApplication $application): ?AiAssessment

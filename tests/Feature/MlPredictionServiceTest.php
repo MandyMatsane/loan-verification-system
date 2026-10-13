@@ -161,4 +161,38 @@ class MlPredictionServiceTest extends TestCase
             ->assertSee('CIBIL score')
             ->assertSee('21.0%');
     }
+
+    public function test_feature_importance_is_only_cached_when_the_service_returns_data(): void
+    {
+        Http::fake([
+            'http://localhost:8000/api/ml/feature-importance' => Http::sequence()
+                ->push([], 503)
+                ->push(['features' => [['feature' => 'cibil_score', 'importance' => 79.8]]], 200),
+        ]);
+
+        $service = app(MlPredictionService::class);
+
+        // a failed call returns nothing and must not be cached
+        $this->assertSame([], $service->getFeatureImportance());
+
+        // so the next call asks the service again, and this result is cached
+        $this->assertSame('cibil_score', $service->getFeatureImportance()[0]['feature']);
+        $this->assertSame('cibil_score', $service->getFeatureImportance()[0]['feature']);
+
+        Http::assertSentCount(2);
+    }
+
+    public function test_admin_dashboard_says_the_service_is_waking_up_when_there_is_no_data(): void
+    {
+        Http::fake([
+            'http://localhost:8000/api/ml/feature-importance' => Http::response([], 503),
+        ]);
+
+        /** @var User $admin */
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($admin)->get('/admin/dashboard')
+            ->assertOk()
+            ->assertSee('The prediction service is waking up. Refresh in a minute.');
+    }
 }

@@ -8,7 +8,7 @@
 
         <x-card title="Share of the model's decision" class="max-w-3xl">
             @if (empty($featureImportance))
-                <p class="text-sm text-body">No feature importance data available.</p>
+                <p class="text-sm text-body">The prediction service is waking up. Refresh in a minute.</p>
             @else
                 <p class="-mt-3 mb-5 text-sm text-body">In %, sorted from most to least important. {{ count($featureImportance) }} features.</p>
                 <x-feature-bars :items="$featureImportance" />

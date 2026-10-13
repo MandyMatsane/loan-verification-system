@@ -41,7 +41,7 @@
             <p class="-mt-3 mb-4 text-sm text-body">Share of the model's decision, in %.</p>
 
             @if (empty($featureImportance))
-                <p class="text-sm text-body">Feature importance is not available right now.</p>
+                <p class="text-sm text-body">The prediction service is waking up. Refresh in a minute.</p>
             @else
                 <x-feature-bars :items="$featureImportance" :limit="5" thin />
                 <a href="{{ route('admin.feature-importance') }}" class="mt-3 inline-flex min-h-11 items-center text-sm font-bold text-brand hover:text-brand-dark">
