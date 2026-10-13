@@ -8,6 +8,7 @@ use App\Services\MlPredictionService;
 use App\Services\OcrService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class LoanApplicationController extends Controller
@@ -29,6 +30,8 @@ class LoanApplicationController extends Controller
 
     public function store(Request $request)
     {
+        $submissionStartedAt = microtime(true);
+
         $validated = $request->validate([
             'amount_requested' => ['required', 'numeric', 'min:0.01'],
             'no_of_dependents' => ['required', 'integer', 'min:0'],
@@ -73,10 +76,27 @@ class LoanApplicationController extends Controller
                 'uploaded_at' => now(),
             ]);
 
+            $ocrStartedAt = microtime(true);
             $this->ocrService->process($document);
+
+            Log::info(sprintf(
+                'TIMING ocr %s (%.1f KB) took %.2fs',
+                $documentType,
+                $file->getSize() / 1024,
+                microtime(true) - $ocrStartedAt
+            ), ['application_id' => $application->id]);
         }
 
+        $predictionStartedAt = microtime(true);
         $this->mlPredictionService->predict($application);
+
+        Log::info(sprintf('TIMING ml prediction took %.2fs', microtime(true) - $predictionStartedAt), [
+            'application_id' => $application->id,
+        ]);
+
+        Log::info(sprintf('TIMING submission total took %.2fs', microtime(true) - $submissionStartedAt), [
+            'application_id' => $application->id,
+        ]);
 
         return redirect()->route('applications.confirmation', $application)
             ->with('success', 'Application submitted successfully.');

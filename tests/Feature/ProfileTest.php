@@ -6,6 +6,7 @@ use App\Models\OcrResult;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Mockery;
 use Tests\TestCase;
@@ -247,5 +248,38 @@ class ProfileTest extends TestCase
             'extracted_text' => 'OCR sample text',
             'confidence_score' => null,
         ]);
+    }
+
+    public function test_submitting_an_application_logs_timings(): void
+    {
+        $user = $this->createUser();
+
+        Storage::fake('public');
+        Log::spy();
+
+        $mock = Mockery::mock(\App\Services\OcrService::class);
+        $mock->shouldReceive('process')->times(3)->andReturnNull();
+        $this->app->instance(\App\Services\OcrService::class, $mock);
+
+        $this->actingAs($user)
+            ->post('/applications', [
+                ...$this->loanDetails(),
+                'id_document' => UploadedFile::fake()->image('id-document.jpg', 800, 600),
+                'payslip' => UploadedFile::fake()->image('payslip.jpg', 800, 600),
+                'bank_statement' => UploadedFile::fake()->create('bank-statement.png', 200, 'image/png'),
+            ])
+            ->assertRedirect();
+
+        foreach ([
+            '/^TIMING ocr id_document \(\d+\.\d KB\) took \d+\.\d\ds$/',
+            '/^TIMING ocr payslip \(\d+\.\d KB\) took \d+\.\d\ds$/',
+            '/^TIMING ocr bank_statement \(200\.0 KB\) took \d+\.\d\ds$/',
+            '/^TIMING ml prediction took \d+\.\d\ds$/',
+            '/^TIMING submission total took \d+\.\d\ds$/',
+        ] as $pattern) {
+            Log::shouldHaveReceived('info')
+                ->withArgs(fn ($message) => preg_match($pattern, $message) === 1)
+                ->once();
+        }
     }
 }
