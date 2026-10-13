@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AiAssessment;
 use App\Models\Document;
 use App\Models\LoanApplication;
+use App\Services\FraudCheckService;
 use App\Services\MlPredictionService;
 use App\Services\OcrService;
 use Illuminate\Http\Request;
@@ -17,10 +19,13 @@ class LoanApplicationController extends Controller
 
     protected MlPredictionService $mlPredictionService;
 
-    public function __construct(OcrService $ocrService, MlPredictionService $mlPredictionService)
+    protected FraudCheckService $fraudCheckService;
+
+    public function __construct(OcrService $ocrService, MlPredictionService $mlPredictionService, FraudCheckService $fraudCheckService)
     {
         $this->ocrService = $ocrService;
         $this->mlPredictionService = $mlPredictionService;
+        $this->fraudCheckService = $fraudCheckService;
     }
 
     public function create()
@@ -88,11 +93,13 @@ class LoanApplicationController extends Controller
         }
 
         $predictionStartedAt = microtime(true);
-        $this->mlPredictionService->predict($application);
+        $assessment = $this->mlPredictionService->predict($application);
 
         Log::info(sprintf('TIMING ml prediction took %.2fs', microtime(true) - $predictionStartedAt), [
             'application_id' => $application->id,
         ]);
+
+        $this->applyDocumentCheck($application, $assessment);
 
         Log::info(sprintf('TIMING submission total took %.2fs', microtime(true) - $submissionStartedAt), [
             'application_id' => $application->id,
@@ -149,9 +156,42 @@ class LoanApplicationController extends Controller
         ]);
 
         $this->ocrService->process($document);
-        $this->mlPredictionService->predict($application);
+        $assessment = $this->mlPredictionService->predict($application);
+        $this->applyDocumentCheck($application, $assessment);
 
         return redirect()->route('applications.show', $application)
             ->with('success', 'Document uploaded successfully.');
+    }
+
+    /**
+     * Run the document check and, when it raises flags, send the application to manual review.
+     * With no assessment (the ML call failed) the application stays Pending.
+     */
+    protected function applyDocumentCheck(LoanApplication $application, ?AiAssessment $assessment): void
+    {
+        $checkStartedAt = microtime(true);
+        $result = $this->fraudCheckService->check($application);
+
+        Log::info(sprintf('TIMING document check took %.2fs', microtime(true) - $checkStartedAt), [
+            'application_id' => $application->id,
+            'flags' => count($result['flags']),
+        ]);
+
+        if ($result['flags'] === [] || $assessment === null) {
+            return;
+        }
+
+        $notes = "Document check:\n- " . implode("\n- ", $result['flags']);
+
+        if (filled($assessment->reasoning_notes)) {
+            $notes .= "\n\n" . $assessment->reasoning_notes;
+        }
+
+        $assessment->fraud_risk_score = 'high';
+        $assessment->reasoning_notes = $notes;
+        $assessment->save();
+
+        $application->status = 'Manual Review';
+        $application->save();
     }
 }
