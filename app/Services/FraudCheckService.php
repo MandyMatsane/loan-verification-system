@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\LoanApplication;
+use DateTimeInterface;
 
 class FraudCheckService
 {
@@ -148,12 +149,18 @@ class FraudCheckService
 
     protected function matchesDateOfBirth(string $idNumber, mixed $dateOfBirth): bool
     {
-        $timestamp = blank($dateOfBirth) ? false : strtotime((string) $dateOfBirth);
+        if ($dateOfBirth instanceof DateTimeInterface) {
+            $expected = $dateOfBirth->format(self::DATE_OF_BIRTH_FORMAT);
+        } else {
+            $timestamp = blank($dateOfBirth) ? false : strtotime((string) $dateOfBirth);
 
-        if ($timestamp === false) {
-            return false;
+            if ($timestamp === false) {
+                return false;
+            }
+
+            $expected = date(self::DATE_OF_BIRTH_FORMAT, $timestamp);
         }
 
-        return substr($idNumber, 0, self::DATE_OF_BIRTH_DIGITS) === date(self::DATE_OF_BIRTH_FORMAT, $timestamp);
+        return substr($idNumber, 0, self::DATE_OF_BIRTH_DIGITS) === $expected;
     }
 }

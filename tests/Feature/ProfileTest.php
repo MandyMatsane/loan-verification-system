@@ -332,6 +332,86 @@ class ProfileTest extends TestCase
         $this->assertNull($user->refresh()->id_number);
     }
 
+    public function test_profile_form_shows_the_saved_date_of_birth(): void
+    {
+        $this->actingAs($this->createUser(self::COMPLETE_PROFILE))
+            ->get('/profile')
+            ->assertOk()
+            ->assertSee('name="date_of_birth" type="date"', false)
+            ->assertSee('value="1980-01-01"', false);
+    }
+
+    public function test_profile_form_keeps_the_submitted_date_of_birth_after_a_validation_error(): void
+    {
+        $user = $this->createUser(self::COMPLETE_PROFILE);
+
+        $this->actingAs($user)
+            ->from('/profile')
+            ->followingRedirects()
+            ->patch('/profile', [
+                'name' => $user->name,
+                'email' => $user->email,
+                'id_number' => 'not-an-id',
+                'date_of_birth' => '1990-05-05',
+            ])
+            ->assertOk()
+            ->assertSee('value="1990-05-05"', false);
+
+        $this->assertSame('1980-01-01', $user->refresh()->date_of_birth->format('Y-m-d'));
+    }
+
+    /**
+     * The fields the profile form sends, filled with the user's current values.
+     */
+    private function profileFormFor(User $user, array $overrides = []): array
+    {
+        return array_merge([
+            'name' => $user->name,
+            'email' => $user->email,
+            'phone_number' => $user->phone_number,
+            'id_number' => $user->id_number,
+            'date_of_birth' => $user->date_of_birth?->format('Y-m-d'),
+            'address' => $user->address,
+            'employment_status' => $user->employment_status,
+            'monthly_income' => $user->monthly_income,
+        ], $overrides);
+    }
+
+    public function test_submitting_the_profile_form_unchanged_keeps_the_date_of_birth(): void
+    {
+        $user = $this->createUser(self::COMPLETE_PROFILE);
+
+        $this->actingAs($user)
+            ->patch('/profile', $this->profileFormFor($user))
+            ->assertSessionHasNoErrors()
+            ->assertRedirect('/profile');
+
+        $this->assertSame('1980-01-01', $user->refresh()->date_of_birth->format('Y-m-d'));
+    }
+
+    public function test_editing_only_the_phone_number_keeps_the_date_of_birth(): void
+    {
+        $user = $this->createUser(self::COMPLETE_PROFILE);
+
+        // as the form sends it: every field, only the phone number changed
+        $this->actingAs($user)
+            ->patch('/profile', $this->profileFormFor($user, ['phone_number' => '0821234567']))
+            ->assertSessionHasNoErrors();
+
+        $user->refresh();
+        $this->assertSame('0821234567', $user->phone_number);
+        $this->assertSame('1980-01-01', $user->date_of_birth->format('Y-m-d'));
+
+        // a request without the date field at all leaves it alone too
+        $this->actingAs($user)
+            ->patch('/profile', ['name' => $user->name, 'email' => $user->email, 'phone_number' => '0831234567'])
+            ->assertSessionHasNoErrors();
+
+        $user->refresh();
+        $this->assertSame('0831234567', $user->phone_number);
+        $this->assertSame('1980-01-01', $user->date_of_birth->format('Y-m-d'));
+    }
+
     public function test_submitting_an_application_logs_timings(): void
     {
         $user = $this->createUser(self::COMPLETE_PROFILE);
