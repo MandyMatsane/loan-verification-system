@@ -219,7 +219,7 @@ class FraudCheckServiceTest extends TestCase
         $this->app->instance(OcrService::class, $mock);
 
         /** @var User $user */
-        $user = User::factory()->create();
+        $user = User::factory()->create(['id_number' => self::VALID_ID, 'date_of_birth' => '1980-01-01']);
 
         $this->actingAs($user)
             ->post('/applications', [

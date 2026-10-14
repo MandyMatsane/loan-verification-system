@@ -8,6 +8,7 @@ use App\Models\LoanApplication;
 use App\Services\FraudCheckService;
 use App\Services\MlPredictionService;
 use App\Services\OcrService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -30,11 +31,19 @@ class LoanApplicationController extends Controller
 
     public function create()
     {
+        if ($redirect = $this->redirectIfProfileIncomplete()) {
+            return $redirect;
+        }
+
         return view('applications.create');
     }
 
     public function store(Request $request)
     {
+        if ($redirect = $this->redirectIfProfileIncomplete()) {
+            return $redirect;
+        }
+
         $submissionStartedAt = microtime(true);
 
         $validated = $request->validate([
@@ -161,6 +170,26 @@ class LoanApplicationController extends Controller
 
         return redirect()->route('applications.show', $application)
             ->with('success', 'Document uploaded successfully.');
+    }
+
+    /**
+     * Applicants need a 13-digit ID number and a date of birth before they apply:
+     * the document check compares both with the ID document. Admins are not affected.
+     */
+    protected function redirectIfProfileIncomplete(): ?RedirectResponse
+    {
+        $user = Auth::user();
+
+        if ($user->role === 'admin') {
+            return null;
+        }
+
+        if (preg_match('/^\d{13}$/', (string) $user->id_number) && filled($user->date_of_birth)) {
+            return null;
+        }
+
+        return redirect()->route('profile.edit')
+            ->with('warning', 'Add your ID number and date of birth before you apply.');
     }
 
     /**

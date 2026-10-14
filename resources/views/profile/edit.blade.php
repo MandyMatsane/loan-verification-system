@@ -3,6 +3,12 @@
         <x-page-header eyebrow="Dashboard / Profile" title="{{ __('Profile') }}" subtitle="Keep your details and password up to date." />
 
         <div class="max-w-3xl space-y-6">
+            @if (session('warning'))
+                <div class="rounded-2xl border border-amber-200 bg-amber-100 px-5 py-4 text-sm font-semibold text-amber-800" role="alert">
+                    {{ session('warning') }}
+                </div>
+            @endif
+
             <x-card>
                 @include('profile.partials.update-profile-information-form')
             </x-card>

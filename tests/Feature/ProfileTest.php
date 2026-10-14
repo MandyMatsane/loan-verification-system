@@ -15,6 +15,11 @@ class ProfileTest extends TestCase
 {
     use RefreshDatabase;
 
+    // what an applicant's profile needs before they can apply
+    private const COMPLETE_PROFILE = ['id_number' => '8001015009087', 'date_of_birth' => '1980-01-01'];
+
+    private const PROFILE_MESSAGE = 'Add your ID number and date of birth before you apply.';
+
     private function createUser(array $attributes = []): User
     {
         /** @var User $user */
@@ -171,7 +176,7 @@ class ProfileTest extends TestCase
 
     public function test_user_can_submit_a_loan_application_with_required_documents(): void
     {
-        $user = $this->createUser();
+        $user = $this->createUser(self::COMPLETE_PROFILE);
 
         Storage::fake('public');
 
@@ -210,7 +215,7 @@ class ProfileTest extends TestCase
 
     public function test_uploaded_documents_create_ocr_results(): void
     {
-        $user = $this->createUser();
+        $user = $this->createUser(self::COMPLETE_PROFILE);
 
         Storage::fake('public');
 
@@ -250,9 +255,86 @@ class ProfileTest extends TestCase
         ]);
     }
 
-    public function test_submitting_an_application_logs_timings(): void
+    public function test_applicant_without_id_number_and_date_of_birth_is_redirected_from_the_application_form(): void
+    {
+        foreach ([
+            [],
+            ['id_number' => '8001015009087'],
+            ['date_of_birth' => '1980-01-01'],
+            ['id_number' => '80010150090', 'date_of_birth' => '1980-01-01'],
+        ] as $profile) {
+            $this->actingAs($this->createUser($profile))
+                ->get('/applications/create')
+                ->assertRedirect('/profile')
+                ->assertSessionHas('warning', self::PROFILE_MESSAGE);
+        }
+    }
+
+    public function test_applicant_without_id_number_and_date_of_birth_cannot_submit_an_application(): void
+    {
+        Storage::fake('public');
+
+        $this->actingAs($this->createUser())
+            ->post('/applications', [
+                ...$this->loanDetails(),
+                'id_document' => UploadedFile::fake()->image('id-document.jpg', 800, 600),
+                'payslip' => UploadedFile::fake()->image('payslip.jpg', 800, 600),
+                'bank_statement' => UploadedFile::fake()->image('bank-statement.png', 800, 600),
+            ])
+            ->assertRedirect('/profile')
+            ->assertSessionHas('warning', self::PROFILE_MESSAGE);
+
+        $this->assertDatabaseCount('loan_applications', 0);
+    }
+
+    public function test_profile_page_shows_the_message_after_the_redirect(): void
+    {
+        $this->actingAs($this->createUser())
+            ->followingRedirects()
+            ->get('/applications/create')
+            ->assertOk()
+            ->assertSee(self::PROFILE_MESSAGE);
+    }
+
+    public function test_applicant_with_id_number_and_date_of_birth_can_open_the_application_form(): void
+    {
+        $this->actingAs($this->createUser(self::COMPLETE_PROFILE))
+            ->get('/applications/create')
+            ->assertOk();
+    }
+
+    public function test_admin_can_open_the_application_form_without_profile_details(): void
+    {
+        $this->actingAs($this->createUser(['role' => 'admin']))
+            ->get('/applications/create')
+            ->assertOk();
+    }
+
+    public function test_profile_id_number_must_be_exactly_13_digits_when_provided(): void
     {
         $user = $this->createUser();
+
+        foreach (['80010150090', '80010150090871', '80010150090AB'] as $idNumber) {
+            $this->actingAs($user)
+                ->from('/profile')
+                ->patch('/profile', ['name' => $user->name, 'email' => $user->email, 'id_number' => $idNumber])
+                ->assertSessionHasErrors('id_number');
+        }
+
+        $this->actingAs($user)
+            ->patch('/profile', ['name' => $user->name, 'email' => $user->email, 'id_number' => '8001015009087'])
+            ->assertSessionHasNoErrors();
+
+        $this->actingAs($user)
+            ->patch('/profile', ['name' => $user->name, 'email' => $user->email, 'id_number' => ''])
+            ->assertSessionHasNoErrors();
+
+        $this->assertNull($user->refresh()->id_number);
+    }
+
+    public function test_submitting_an_application_logs_timings(): void
+    {
+        $user = $this->createUser(self::COMPLETE_PROFILE);
 
         Storage::fake('public');
         Log::spy();
