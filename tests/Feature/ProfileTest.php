@@ -332,6 +332,18 @@ class ProfileTest extends TestCase
         $this->assertNull($user->refresh()->id_number);
     }
 
+    public function test_profile_accepts_a_13_digit_id_number_that_fails_the_checksum(): void
+    {
+        // the document check flags a bad checksum; the profile must still save it so it can be tested
+        $user = $this->createUser();
+
+        $this->actingAs($user)
+            ->patch('/profile', ['name' => $user->name, 'email' => $user->email, 'id_number' => '8001015009086'])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame('8001015009086', $user->refresh()->id_number);
+    }
+
     public function test_profile_form_shows_the_saved_date_of_birth(): void
     {
         $this->actingAs($this->createUser(self::COMPLETE_PROFILE))
