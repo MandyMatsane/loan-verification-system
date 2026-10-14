@@ -3,11 +3,10 @@
         $assessment = $application->aiAssessment;
         $money = fn ($value) => 'R' . number_format((float) ($value ?? 0), 2);
 
-        $outcomeClass = match (strtolower(trim((string) $assessment?->eligibility_outcome))) {
-            'approved' => 'text-green-800',
-            'rejected' => 'text-red-800',
-            default => 'text-amber-800',
-        };
+        // the document check prefixes its flags with "Document check:" when it sends an application to manual review
+        $overriddenByDocumentCheck = $assessment
+            && strtolower(trim((string) $application->status)) === 'manual review'
+            && str_starts_with((string) $assessment->reasoning_notes, 'Document check:');
 
         $documentLabels = ['id_document' => 'ID document', 'payslip' => 'Payslip', 'bank_statement' => 'Bank statement'];
 
@@ -83,7 +82,11 @@
                                 </span>
                                 <h3 class="text-sm font-bold text-ink">{{ $documentLabels[$document->type] ?? ucfirst(str_replace('_', ' ', $document->type)) }}</h3>
                             </div>
-                            <pre class="mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-xl bg-slate-100 p-3 font-mono text-xs leading-5 text-slate-700" tabindex="0">{{ $document->ocrResult->extracted_text ?? 'Not processed yet' }}</pre>
+                            @if (filled(trim((string) $document->ocrResult?->extracted_text)))
+                                <pre class="mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-xl bg-slate-100 p-3 font-mono text-xs leading-5 text-slate-700" tabindex="0">{{ $document->ocrResult->extracted_text }}</pre>
+                            @else
+                                <p class="mt-2 rounded-xl bg-slate-100 p-3 text-sm text-body">No readable text was found in this file.</p>
+                            @endif
                         </div>
                     @empty
                         <p class="text-sm text-body">No documents uploaded.</p>
@@ -94,7 +97,12 @@
             <div class="space-y-6">
                 <x-card title="AI assessment">
                     @if ($assessment)
-                        <p class="text-2xl font-extrabold {{ $outcomeClass }}">{{ $assessment->eligibility_outcome }}</p>
+                        <p class="text-xs text-slate-500">Model outcome</p>
+                        <p class="mt-0.5 text-sm font-bold text-ink">{{ $assessment->eligibility_outcome }}</p>
+
+                        @if ($overriddenByDocumentCheck)
+                            <p class="mt-1 text-xs font-semibold text-amber-800">Overridden by the document check. See the reasoning notes.</p>
+                        @endif
 
                         <x-confidence-bar class="mt-4" label="Confidence" :score="$assessment->confidence_score" />
 
