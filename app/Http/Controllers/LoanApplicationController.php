@@ -2,11 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\AiAssessment;
 use App\Models\Document;
 use App\Models\LoanApplication;
-use App\Services\FraudCheckService;
-use App\Services\MlPredictionService;
+use App\Services\ApplicationAssessor;
 use App\Services\OcrService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,15 +16,12 @@ class LoanApplicationController extends Controller
 {
     protected OcrService $ocrService;
 
-    protected MlPredictionService $mlPredictionService;
+    protected ApplicationAssessor $assessor;
 
-    protected FraudCheckService $fraudCheckService;
-
-    public function __construct(OcrService $ocrService, MlPredictionService $mlPredictionService, FraudCheckService $fraudCheckService)
+    public function __construct(OcrService $ocrService, ApplicationAssessor $assessor)
     {
         $this->ocrService = $ocrService;
-        $this->mlPredictionService = $mlPredictionService;
-        $this->fraudCheckService = $fraudCheckService;
+        $this->assessor = $assessor;
     }
 
     public function create()
@@ -75,6 +70,29 @@ class LoanApplicationController extends Controller
             'bank_asset_value' => $validated['bank_asset_value'],
         ]);
 
+        // hold the lock while OCR runs so a page visit cannot retry this application half-way through
+        $lock = $this->assessor->lock($application, 600);
+        $locked = $lock->get();
+
+        try {
+            $this->processUploads($application, $validated);
+            $this->assessor->assess($application);
+        } finally {
+            if ($locked) {
+                $lock->release();
+            }
+        }
+
+        Log::info(sprintf('TIMING submission total took %.2fs', microtime(true) - $submissionStartedAt), [
+            'application_id' => $application->id,
+        ]);
+
+        return redirect()->route('applications.confirmation', $application)
+            ->with('success', 'Application submitted successfully.');
+    }
+
+    protected function processUploads(LoanApplication $application, array $validated): void
+    {
         foreach (['id_document', 'payslip', 'bank_statement'] as $documentType) {
             $file = $validated[$documentType];
             $path = $file->storeAs(
@@ -100,22 +118,6 @@ class LoanApplicationController extends Controller
                 microtime(true) - $ocrStartedAt
             ), ['application_id' => $application->id]);
         }
-
-        $predictionStartedAt = microtime(true);
-        $assessment = $this->mlPredictionService->predict($application);
-
-        Log::info(sprintf('TIMING ml prediction took %.2fs', microtime(true) - $predictionStartedAt), [
-            'application_id' => $application->id,
-        ]);
-
-        $this->applyDocumentCheck($application, $assessment);
-
-        Log::info(sprintf('TIMING submission total took %.2fs', microtime(true) - $submissionStartedAt), [
-            'application_id' => $application->id,
-        ]);
-
-        return redirect()->route('applications.confirmation', $application)
-            ->with('success', 'Application submitted successfully.');
     }
 
     public function confirmation(LoanApplication $application)
@@ -124,7 +126,12 @@ class LoanApplicationController extends Controller
             abort(403);
         }
 
-        $application->load('documents');
+        // retry one of this applicant's own stuck applications, this one first
+        if ($this->assessor->retryDue(Auth::id(), $application->id) !== null) {
+            $application->refresh();
+        }
+
+        $application->load('documents', 'aiAssessment');
 
         return view('applications.confirmation', compact('application'));
     }
@@ -164,9 +171,17 @@ class LoanApplicationController extends Controller
             'uploaded_at' => now(),
         ]);
 
-        $this->ocrService->process($document);
-        $assessment = $this->mlPredictionService->predict($application);
-        $this->applyDocumentCheck($application, $assessment);
+        $lock = $this->assessor->lock($application, 600);
+        $locked = $lock->get();
+
+        try {
+            $this->ocrService->process($document);
+            $this->assessor->assess($application);
+        } finally {
+            if ($locked) {
+                $lock->release();
+            }
+        }
 
         return redirect()->route('applications.show', $application)
             ->with('success', 'Document uploaded successfully.');
@@ -190,37 +205,5 @@ class LoanApplicationController extends Controller
 
         return redirect()->route('profile.edit')
             ->with('warning', 'Add your ID number and date of birth before you apply.');
-    }
-
-    /**
-     * Run the document check and, when it raises flags, send the application to manual review.
-     * With no assessment (the ML call failed) the application stays Pending.
-     */
-    protected function applyDocumentCheck(LoanApplication $application, ?AiAssessment $assessment): void
-    {
-        $checkStartedAt = microtime(true);
-        $result = $this->fraudCheckService->check($application);
-
-        Log::info(sprintf('TIMING document check took %.2fs', microtime(true) - $checkStartedAt), [
-            'application_id' => $application->id,
-            'flags' => count($result['flags']),
-        ]);
-
-        if ($result['flags'] === [] || $assessment === null) {
-            return;
-        }
-
-        $notes = "Document check:\n- " . implode("\n- ", $result['flags']);
-
-        if (filled($assessment->reasoning_notes)) {
-            $notes .= "\n\n" . $assessment->reasoning_notes;
-        }
-
-        $assessment->fraud_risk_score = 'high';
-        $assessment->reasoning_notes = $notes;
-        $assessment->save();
-
-        $application->status = 'Manual Review';
-        $application->save();
     }
 }

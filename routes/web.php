@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\ApplicationController as AdminApplicationControll
 use App\Http\Controllers\LoanApplicationController;
 use App\Http\Controllers\ProfileController;
 use App\Models\LoanApplication;
+use App\Services\ApplicationAssessor;
 use App\Services\MlPredictionService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -16,6 +17,11 @@ Route::get('/dashboard', function () {
     $user = Auth::user();
     $applications = collect();
     $featureImportance = [];
+
+    if ($user) {
+        // retry one stuck application: any for an admin, only their own for an applicant
+        app(ApplicationAssessor::class)->retryDue($user->role === 'admin' ? null : $user->id);
+    }
 
     if ($user && $user->role === 'admin') {
         $applications = LoanApplication::with('user', 'aiAssessment')->latest()->get();
@@ -45,7 +51,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/dashboard', [AdminApplicationController::class, 'dashboard'])->name('dashboard');
         Route::get('/feature-importance', [AdminApplicationController::class, 'featureImportance'])->name('feature-importance');
         Route::get('/applications', [AdminApplicationController::class, 'index'])->name('applications.index');
+        Route::post('/applications/retry-pending', [AdminApplicationController::class, 'retryPending'])->name('applications.retry-pending');
         Route::get('/applications/{application}', [AdminApplicationController::class, 'show'])->name('applications.show');
+        Route::post('/applications/{application}/retry', [AdminApplicationController::class, 'retry'])->name('applications.retry');
     });
 });
 

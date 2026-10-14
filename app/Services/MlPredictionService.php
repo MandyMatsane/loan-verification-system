@@ -81,7 +81,7 @@ class MlPredictionService
         }
     }
 
-    public function predict(LoanApplication $application): ?AiAssessment
+    public function predict(LoanApplication $application, int $timeout = 60): ?AiAssessment
     {
         $application->loadMissing('user');
 
@@ -90,7 +90,7 @@ class MlPredictionService
         $payload = $this->buildPayload($application);
 
         try {
-            $response = Http::timeout(60)
+            $response = Http::timeout($timeout)
                 ->acceptJson()
                 ->post($url, $payload);
 

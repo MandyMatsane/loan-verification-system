@@ -25,6 +25,13 @@
                 'circle' => 'bg-red-100 text-red-800',
                 'banner' => 'border-red-200 bg-red-100 text-red-800',
             ],
+            'pending', '' => [
+                'headline' => 'Application received',
+                'line' => 'We are still assessing your application. Refresh this page in a minute.',
+                'icon' => 'clock',
+                'circle' => 'bg-slate-200 text-slate-600',
+                'banner' => 'border-slate-300 bg-slate-200 text-slate-600',
+            ],
             default => [
                 'headline' => 'Application received',
                 'line' => 'We are still assessing your documents. Check back soon for your result.',

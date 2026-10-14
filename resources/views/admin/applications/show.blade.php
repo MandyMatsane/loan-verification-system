@@ -30,14 +30,35 @@
         <x-page-header eyebrow="Applications / #{{ $application->id }}" title="Application #{{ $application->id }}">
             <x-slot name="badge">
                 <x-status-badge :status="$application->status" />
+                @if ($application->needsManualRetry())
+                    <x-manual-retry-badge />
+                @endif
             </x-slot>
             <x-slot name="actions">
+                @if ($application->isRetryable())
+                    <form method="POST" action="{{ route('admin.applications.retry', $application) }}">
+                        @csrf
+                        <x-primary-button>Retry assessment</x-primary-button>
+                    </form>
+                @endif
                 <x-button-link variant="outline" href="{{ route('admin.applications.index') }}">
                     <x-icon name="chevron-left" />
                     Back to queue
                 </x-button-link>
             </x-slot>
         </x-page-header>
+
+        @if (session('success'))
+            <div class="rounded-2xl border border-green-200 bg-green-100 px-5 py-4 text-sm font-semibold text-green-800" role="status">
+                {{ session('success') }}
+            </div>
+        @endif
+
+        @if (session('warning'))
+            <div class="rounded-2xl border border-amber-200 bg-amber-100 px-5 py-4 text-sm font-semibold text-amber-800" role="alert">
+                {{ session('warning') }}
+            </div>
+        @endif
 
         <div class="grid gap-6 xl:grid-cols-3">
             <div class="min-w-0 space-y-6 xl:col-span-2">

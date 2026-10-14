@@ -76,7 +76,12 @@
                         <tr x-show="ok(rows[{{ $i }}])">
                             <td class="whitespace-nowrap py-2 pr-4 font-semibold text-ink">{{ $application->user?->name ?? 'Unknown' }}</td>
                             <td class="whitespace-nowrap px-3 py-2 tabular-nums text-ink">R{{ number_format($application->amount_requested, 2) }}</td>
-                            <td class="px-3 py-2"><x-status-badge :status="$application->status" /></td>
+                            <td class="px-3 py-2">
+                                <x-status-badge :status="$application->status" />
+                                @if ($application->needsManualRetry())
+                                    <x-manual-retry-badge class="mt-1" />
+                                @endif
+                            </td>
                             <td class="whitespace-nowrap px-3 py-2 tabular-nums text-body">{{ $confidence !== null ? number_format((float) $confidence, 1) . '%' : '-' }}</td>
                             <td class="px-3 py-2"><x-risk-badge :level="$application->aiAssessment?->fraud_risk_score" /></td>
                             <td class="py-2 pl-2 text-right">
@@ -98,7 +103,12 @@
                     <a href="{{ route('admin.applications.show', $application) }}" class="block rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-brand">
                         <div class="flex items-start justify-between gap-3">
                             <p class="min-w-0 truncate font-bold text-ink">{{ $application->user?->name ?? 'Unknown' }}</p>
-                            <x-status-badge :status="$application->status" />
+                            <span class="flex flex-wrap justify-end gap-1">
+                                <x-status-badge :status="$application->status" />
+                                @if ($application->needsManualRetry())
+                                    <x-manual-retry-badge />
+                                @endif
+                            </span>
                         </div>
                         <div class="mt-2 flex items-center justify-between gap-3">
                             <p class="text-sm text-body">
