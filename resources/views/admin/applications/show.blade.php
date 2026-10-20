@@ -3,16 +3,19 @@
         $assessment = $application->aiAssessment;
         $money = fn ($value) => 'R' . number_format((float) ($value ?? 0), 2);
 
-        // the document check prefixes its flags with "Document check:" when it sends an application to manual review
-        $overriddenByDocumentCheck = $assessment
+        // the document check prefixes its flags with "Document check:" when it sends an application to manual review;
+        // below 70% confidence the model would have sent it to manual review anyway
+        $documentCheckReview = $assessment
             && strtolower(trim((string) $application->status)) === 'manual review'
             && str_starts_with((string) $assessment->reasoning_notes, 'Document check:');
+        $overriddenByDocumentCheck = $documentCheckReview && (float) $assessment->confidence_score >= 70;
+        $lowConfidenceAndDocumentCheck = $documentCheckReview && (float) $assessment->confidence_score < 70;
 
         $documentLabels = ['id_document' => 'ID document', 'payslip' => 'Payslip', 'bank_statement' => 'Bank statement'];
 
         $details = [
             'Amount requested' => $money($application->amount_requested),
-            'Loan term' => $application->loan_term !== null ? $application->loan_term . ' months' : '-',
+            'Loan term' => $application->loanTermLabel(),
             'Dependents' => $application->no_of_dependents ?? '-',
             'Education' => $application->education ?? '-',
         ];
@@ -123,6 +126,8 @@
 
                         @if ($overriddenByDocumentCheck)
                             <p class="mt-1 text-xs font-semibold text-amber-800">Overridden by the document check. See the reasoning notes.</p>
+                        @elseif ($lowConfidenceAndDocumentCheck)
+                            <p class="mt-1 text-xs font-semibold text-amber-800">Sent to manual review by low confidence and the document check. See the reasoning notes.</p>
                         @endif
 
                         <x-confidence-bar class="mt-4" label="Confidence" :score="$assessment->confidence_score" />

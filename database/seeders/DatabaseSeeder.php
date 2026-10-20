@@ -17,18 +17,14 @@ class DatabaseSeeder extends Seeder
     {
         // User::factory(10)->create();
 
+        // the factory gives this account a random password
         User::factory()->create([
             'name' => 'Test User',
             'email' => 'test@example.com',
             'role' => 'applicant',
-            'password' => bcrypt('password'), // Ensure you hash the password
         ]);
 
-         User::factory()->create([
-        'name' => 'Admin User',
-        'email' => 'admin@example.com',
-        'role' => 'admin',
-        'password' => bcrypt('admin123'), // Ensure you hash the password
-        ]);
+        // the admin comes from ADMIN_EMAIL and ADMIN_SEED_PASSWORD
+        $this->call(AdminSeeder::class);
     }
 }

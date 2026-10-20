@@ -288,7 +288,7 @@
                     </div>
                     <div class="flex items-baseline justify-between gap-3">
                         <dt class="text-body">Term</dt>
-                        <dd class="font-bold text-ink" x-text="form.loan_term ? form.loan_term + ' months' : '-'">-</dd>
+                        <dd class="font-bold text-ink" x-text="form.loan_term ? form.loan_term + (Number(form.loan_term) === 1 ? ' month' : ' months') : '-'">-</dd>
                     </div>
                     <div class="flex items-baseline justify-between gap-3">
                         <dt class="text-body">Credit score band</dt>

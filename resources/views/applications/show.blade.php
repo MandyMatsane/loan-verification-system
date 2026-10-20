@@ -6,7 +6,7 @@
 
         $details = [
             'Amount requested' => $money($application->amount_requested),
-            'Loan term' => $application->loan_term !== null ? $application->loan_term . ' months' : '-',
+            'Loan term' => $application->loanTermLabel(),
             'Dependents' => $application->no_of_dependents ?? '-',
             'Education' => $application->education ?? '-',
             'Credit score band' => $application->cibil_score_band ?? '-',

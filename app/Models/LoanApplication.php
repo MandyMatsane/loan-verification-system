@@ -59,6 +59,18 @@ class LoanApplication extends Model
             });
     }
 
+    /**
+     * "1 month", "N months", or "-" when no term was given.
+     */
+    public function loanTermLabel(): string
+    {
+        if ($this->loan_term === null) {
+            return '-';
+        }
+
+        return $this->loan_term . ((int) $this->loan_term === 1 ? ' month' : ' months');
+    }
+
     public function isRetryable(): bool
     {
         return strtolower(trim((string) $this->status)) === 'pending' && $this->aiAssessment === null;

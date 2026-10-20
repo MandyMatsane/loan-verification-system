@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Mockery;
 use Tests\TestCase;
 
@@ -74,11 +75,13 @@ class ProfileTest extends TestCase
 
     public function test_new_users_are_redirected_to_profile_setup_after_registration(): void
     {
+        $password = Str::password(16);
+
         $response = $this->post('/register', [
             'name' => 'Applicant User',
             'email' => 'applicant@example.com',
-            'password' => 'Password123!',
-            'password_confirmation' => 'Password123!',
+            'password' => $password,
+            'password_confirmation' => $password,
         ]);
 
         $response->assertRedirect('/profile');
@@ -140,12 +143,13 @@ class ProfileTest extends TestCase
 
     public function test_user_can_delete_their_account(): void
     {
-        $user = $this->createUser();
+        $password = Str::password(16);
+        $user = $this->createUser(['password' => $password]);
 
         $response = $this
             ->actingAs($user)
             ->delete('/profile', [
-                'password' => 'password',
+                'password' => $password,
             ]);
 
         $response
@@ -164,7 +168,7 @@ class ProfileTest extends TestCase
             ->actingAs($user)
             ->from('/profile')
             ->delete('/profile', [
-                'password' => 'wrong-password',
+                'password' => Str::password(16),
             ]);
 
         $response
