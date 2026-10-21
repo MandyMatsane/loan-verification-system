@@ -38,6 +38,8 @@
                 : '';
         }
 
+        $ratePercent = rtrim(rtrim(number_format((float) config('loan.annual_interest_rate') * 100, 2), '0'), '.') . '%';
+
         $steps = [1 => 'Loan details', 2 => 'Financial profile', 3 => 'Documents'];
 
         $fieldClass = 'mt-2 block w-full';
@@ -52,6 +54,25 @@
                 submitting: false,
                 files: { id_document: null, payslip: null, bank_statement: null },
                 reuse: config.reuse,
+                rate: config.rate,
+                // same formula as App\Services\RepaymentCalculator; the server works it out again on submit
+                get estimate() {
+                    const amount = Number(this.form.amount_requested);
+                    const term = Number(this.form.loan_term);
+                    if (String(this.form.amount_requested ?? '') === '' || ! (amount > 0) || ! Number.isInteger(term) || term < 1) {
+                        return null;
+                    }
+                    const round = (value) => Math.round((value + Number.EPSILON) * 100) / 100;
+                    const monthlyRate = this.rate / 12;
+                    const monthly = monthlyRate === 0
+                        ? amount / term
+                        : amount * monthlyRate / (1 - Math.pow(1 + monthlyRate, -term));
+                    const total = round(monthly * term);
+                    return { monthly: round(monthly), total: total, interest: round(total - amount) };
+                },
+                get ratePercent() {
+                    return Number((this.rate * 100).toFixed(2)) + '%';
+                },
                 names: { id_document: 'ID document', payslip: 'payslip', bank_statement: 'bank statement' },
                 steps: ['Loan details', 'Financial profile', 'Documents'],
                 pick(key, event) {
@@ -119,6 +140,7 @@
                   'cibil_score_band' => old('cibil_score_band', ''),
               ],
               'reuse' => $reuseChoice,
+              'rate' => (float) config('loan.annual_interest_rate'),
           ]) }})"
           @submit="submitting = true"
           class="space-y-6">
@@ -207,6 +229,25 @@
                             </select>
                             <x-input-error :messages="$errors->get('education')" class="mt-2" />
                         </div>
+                    </div>
+
+                    <div class="mt-5 rounded-xl bg-brand-tint p-4" aria-live="polite">
+                        <h3 class="text-sm font-bold text-ink">Repayment estimate</h3>
+                        <dl class="mt-3 grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
+                            <div>
+                                <dt class="text-xs text-body">Monthly repayment</dt>
+                                <dd class="font-bold tabular-nums text-ink" x-text="estimate ? money(estimate.monthly) : '-'">-</dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs text-body">Total repayable</dt>
+                                <dd class="font-bold tabular-nums text-ink" x-text="estimate ? money(estimate.total) : '-'">-</dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs text-body">Interest (<span x-text="ratePercent">{{ $ratePercent }}</span> a year)</dt>
+                                <dd class="font-bold tabular-nums text-ink" x-text="estimate ? money(estimate.interest) : '-'">-</dd>
+                            </div>
+                        </dl>
+                        <p class="mt-3 text-xs text-body">Estimate only. Final terms are set by the lender.</p>
                     </div>
                 </section>
 
@@ -323,6 +364,18 @@
                         <dd class="font-bold text-ink" x-text="form.loan_term ? form.loan_term + (Number(form.loan_term) === 1 ? ' month' : ' months') : '-'">-</dd>
                     </div>
                     <div class="flex items-baseline justify-between gap-3">
+                        <dt class="text-body">Monthly repayment</dt>
+                        <dd class="font-bold tabular-nums text-ink" x-text="estimate ? money(estimate.monthly) : '-'">-</dd>
+                    </div>
+                    <div class="flex items-baseline justify-between gap-3">
+                        <dt class="text-body">Total repayable</dt>
+                        <dd class="font-bold tabular-nums text-ink" x-text="estimate ? money(estimate.total) : '-'">-</dd>
+                    </div>
+                    <div class="flex items-baseline justify-between gap-3">
+                        <dt class="text-body">Interest (<span x-text="ratePercent">{{ $ratePercent }}</span>)</dt>
+                        <dd class="font-bold tabular-nums text-ink" x-text="estimate ? money(estimate.interest) : '-'">-</dd>
+                    </div>
+                    <div class="flex items-baseline justify-between gap-3">
                         <dt class="text-body">Credit score band</dt>
                         <dd class="font-bold text-ink" x-text="form.cibil_score_band || '-'">-</dd>
                     </div>
@@ -331,6 +384,7 @@
                         <dd class="font-bold text-ink"><span x-text="chosen">0</span> of 3</dd>
                     </div>
                 </dl>
+                <p class="mt-3 text-xs text-body">Estimate only. Final terms are set by the lender.</p>
 
                 <x-primary-button class="mt-5 w-full" ::disabled="! canSubmit || submitting">
                     <span x-text="submitting ? 'Submitting...' : 'Submit application'">Submit application</span>

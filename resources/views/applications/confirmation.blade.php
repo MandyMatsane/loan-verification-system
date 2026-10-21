@@ -41,6 +41,13 @@
             ],
         };
 
+        $estimate = $application->repaymentEstimate();
+        $repayment = [
+            'Monthly repayment' => $estimate['monthly_repayment'],
+            'Total repayable' => $estimate['total_repayable'],
+            'Interest' => $estimate['interest'],
+        ];
+
         $documentLabels = ['id_document' => 'ID document', 'payslip' => 'Payslip', 'bank_statement' => 'Bank statement'];
     @endphp
 
@@ -69,7 +76,14 @@
                     <dt class="text-body">Status</dt>
                     <dd><x-status-badge :status="$application->status" /></dd>
                 </div>
+                @foreach ($repayment as $label => $value)
+                    <div class="flex items-center justify-between gap-3">
+                        <dt class="text-body">{{ $label }}</dt>
+                        <dd class="text-right font-bold tabular-nums text-ink">{{ $value }}</dd>
+                    </div>
+                @endforeach
             </dl>
+            <p class="mt-2 text-xs text-body">Estimate only. Final terms are set by the lender.</p>
 
             <x-confidence-bar class="mt-4" :score="$confidence" />
 
@@ -109,7 +123,14 @@
                         <dt class="text-body">Status</dt>
                         <dd><x-status-badge :status="$application->status" /></dd>
                     </div>
+                    @foreach ($repayment as $label => $value)
+                        <div class="flex items-center justify-between gap-3">
+                            <dt class="text-body">{{ $label }}</dt>
+                            <dd class="text-right font-bold tabular-nums text-ink">{{ $value }}</dd>
+                        </div>
+                    @endforeach
                 </dl>
+                <p class="mt-2 text-xs text-body">Estimate only. Final terms are set by the lender.</p>
 
                 <x-confidence-bar class="mt-4" :score="$confidence" />
             </x-card>

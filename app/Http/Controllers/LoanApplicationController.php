@@ -7,6 +7,7 @@ use App\Models\LoanApplication;
 use App\Models\OcrResult;
 use App\Services\ApplicationAssessor;
 use App\Services\OcrService;
+use App\Services\RepaymentCalculator;
 use App\Services\ReusableDocuments;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -23,11 +24,14 @@ class LoanApplicationController extends Controller
 
     protected ReusableDocuments $reusableDocuments;
 
-    public function __construct(OcrService $ocrService, ApplicationAssessor $assessor, ReusableDocuments $reusableDocuments)
+    protected RepaymentCalculator $repaymentCalculator;
+
+    public function __construct(OcrService $ocrService, ApplicationAssessor $assessor, ReusableDocuments $reusableDocuments, RepaymentCalculator $repaymentCalculator)
     {
         $this->ocrService = $ocrService;
         $this->assessor = $assessor;
         $this->reusableDocuments = $reusableDocuments;
+        $this->repaymentCalculator = $repaymentCalculator;
     }
 
     public function create()
@@ -90,6 +94,9 @@ class LoanApplicationController extends Controller
             throw ValidationException::withMessages($reuseErrors);
         }
 
+        // worked out here from the validated amount and term, never taken from the form
+        $estimate = $this->repaymentCalculator->estimate((float) $validated['amount_requested'], (int) $validated['loan_term']);
+
         $application = LoanApplication::create([
             'user_id' => Auth::id(),
             'amount_requested' => $validated['amount_requested'],
@@ -102,6 +109,9 @@ class LoanApplicationController extends Controller
             'commercial_assets_value' => $validated['commercial_assets_value'],
             'luxury_assets_value' => $validated['luxury_assets_value'],
             'bank_asset_value' => $validated['bank_asset_value'],
+            'interest_rate' => $estimate['rate'],
+            'monthly_repayment' => $estimate['monthly_repayment'],
+            'total_repayable' => $estimate['total_repayable'],
         ]);
 
         // hold the lock while OCR runs so a page visit cannot retry this application half-way through

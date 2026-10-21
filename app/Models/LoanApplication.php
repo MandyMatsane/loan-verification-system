@@ -20,6 +20,9 @@ class LoanApplication extends Model
         'commercial_assets_value',
         'luxury_assets_value',
         'bank_asset_value',
+        'interest_rate',
+        'monthly_repayment',
+        'total_repayable',
     ];
 
     protected $casts = [
@@ -69,6 +72,31 @@ class LoanApplication extends Model
         }
 
         return $this->loan_term . ((int) $this->loan_term === 1 ? ' month' : ' months');
+    }
+
+    /**
+     * The repayment estimate saved at submission, formatted for display; "-" for applications from before it existed.
+     *
+     * @return array{monthly_repayment: string, total_repayable: string, interest: string}
+     */
+    public function repaymentEstimate(): array
+    {
+        $money = fn ($value) => $value === null ? '-' : 'R' . number_format((float) $value, 2);
+
+        $interest = '-';
+        if ($this->total_repayable !== null && $this->amount_requested !== null) {
+            $interest = $money(round((float) $this->total_repayable - (float) $this->amount_requested, 2));
+
+            if ($this->interest_rate !== null) {
+                $interest .= ' at ' . rtrim(rtrim(number_format((float) $this->interest_rate * 100, 2), '0'), '.') . '% a year';
+            }
+        }
+
+        return [
+            'monthly_repayment' => $money($this->monthly_repayment),
+            'total_repayable' => $money($this->total_repayable),
+            'interest' => $interest,
+        ];
     }
 
     public function isRetryable(): bool

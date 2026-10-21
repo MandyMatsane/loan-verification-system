@@ -4,9 +4,14 @@
 
         $documentLabels = ['id_document' => 'ID document', 'payslip' => 'Payslip', 'bank_statement' => 'Bank statement'];
 
+        $repayment = $application->repaymentEstimate();
+
         $details = [
             'Amount requested' => $money($application->amount_requested),
             'Loan term' => $application->loanTermLabel(),
+            'Monthly repayment' => $repayment['monthly_repayment'],
+            'Total repayable' => $repayment['total_repayable'],
+            'Interest' => $repayment['interest'],
             'Dependents' => $application->no_of_dependents ?? '-',
             'Education' => $application->education ?? '-',
             'Credit score band' => $application->cibil_score_band ?? '-',
