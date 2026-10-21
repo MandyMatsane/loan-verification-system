@@ -42,9 +42,6 @@
         };
 
         $documentLabels = ['id_document' => 'ID document', 'payslip' => 'Payslip', 'bank_statement' => 'Bank statement'];
-
-        // stored as "{type}-{uuid}-{original name}": show the original name only
-        $fileName = fn ($document) => preg_replace('/^' . preg_quote($document->type, '/') . '-[0-9a-f-]{36}-/i', '', basename($document->file_path));
     @endphp
 
     {{-- Phone: full-screen result --}}
@@ -129,7 +126,10 @@
                                 </span>
                                 <span class="min-w-0">
                                     <span class="block text-sm font-bold text-ink">{{ $documentLabels[$document->type] ?? ucfirst(str_replace('_', ' ', $document->type)) }}</span>
-                                    <span class="block truncate text-xs text-body">{{ $fileName($document) }}</span>
+                                    <span class="block truncate text-xs text-body">{{ $document->fileExists() ? $document->displayName() : 'File no longer available' }}</span>
+                                    @if ($document->isReused())
+                                        <span class="block text-xs font-semibold text-brand">Reused from earlier application</span>
+                                    @endif
                                 </span>
                             </li>
                         @endforeach

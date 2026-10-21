@@ -104,7 +104,13 @@
                                 <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-brand">
                                     <x-icon name="document" />
                                 </span>
-                                <h3 class="text-sm font-bold text-ink">{{ $documentLabels[$document->type] ?? ucfirst(str_replace('_', ' ', $document->type)) }}</h3>
+                                <div class="min-w-0">
+                                    <h3 class="text-sm font-bold text-ink">{{ $documentLabels[$document->type] ?? ucfirst(str_replace('_', ' ', $document->type)) }}</h3>
+                                    <p class="truncate text-xs text-body">{{ $document->fileExists() ? $document->displayName() : 'File no longer available' }}</p>
+                                    @if ($document->isReused())
+                                        <p class="text-xs font-semibold text-brand">Reused from earlier application</p>
+                                    @endif
+                                </div>
                             </div>
                             @if (filled(trim((string) $document->ocrResult?->extracted_text)))
                                 <pre class="mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-xl bg-slate-100 p-3 font-mono text-xs leading-5 text-slate-700" tabindex="0">{{ $document->ocrResult->extracted_text }}</pre>

@@ -4,13 +4,16 @@ namespace App\Http\Controllers;
 
 use App\Models\Document;
 use App\Models\LoanApplication;
+use App\Models\OcrResult;
 use App\Services\ApplicationAssessor;
 use App\Services\OcrService;
+use App\Services\ReusableDocuments;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class LoanApplicationController extends Controller
 {
@@ -18,10 +21,13 @@ class LoanApplicationController extends Controller
 
     protected ApplicationAssessor $assessor;
 
-    public function __construct(OcrService $ocrService, ApplicationAssessor $assessor)
+    protected ReusableDocuments $reusableDocuments;
+
+    public function __construct(OcrService $ocrService, ApplicationAssessor $assessor, ReusableDocuments $reusableDocuments)
     {
         $this->ocrService = $ocrService;
         $this->assessor = $assessor;
+        $this->reusableDocuments = $reusableDocuments;
     }
 
     public function create()
@@ -30,7 +36,9 @@ class LoanApplicationController extends Controller
             return $redirect;
         }
 
-        return view('applications.create');
+        $reusable = $this->reusableDocuments->latestFor(Auth::user());
+
+        return view('applications.create', compact('reusable'));
     }
 
     public function store(Request $request)
@@ -51,10 +59,36 @@ class LoanApplicationController extends Controller
             'commercial_assets_value' => ['required', 'numeric', 'min:0'],
             'luxury_assets_value' => ['required', 'numeric', 'min:0'],
             'bank_asset_value' => ['required', 'numeric', 'min:0'],
-            'id_document' => ['required', 'file', 'mimes:jpg,jpeg,png', 'max:5120'],
-            'payslip' => ['required', 'file', 'mimes:jpg,jpeg,png', 'max:5120'],
-            'bank_statement' => ['required', 'file', 'mimes:jpg,jpeg,png', 'max:5120'],
+            // each slot takes a new upload, or "{type}_reuse" with the id of an earlier document
+            'id_document' => ['required_without:id_document_reuse', 'nullable', 'file', 'mimes:jpg,jpeg,png', 'max:5120'],
+            'payslip' => ['required_without:payslip_reuse', 'nullable', 'file', 'mimes:jpg,jpeg,png', 'max:5120'],
+            'bank_statement' => ['required_without:bank_statement_reuse', 'nullable', 'file', 'mimes:jpg,jpeg,png', 'max:5120'],
         ]);
+
+        // never trust the id from the form: it must still be this user's own, recent document of that type
+        $reused = [];
+        $reuseErrors = [];
+        foreach (ReusableDocuments::TYPES as $documentType) {
+            $reuseId = $request->input($documentType . '_reuse');
+
+            if (blank($reuseId)) {
+                continue;
+            }
+
+            $document = $this->reusableDocuments->find($request->user(), $documentType, $reuseId);
+
+            if ($document === null) {
+                $reuseErrors[$documentType] = 'That earlier document can no longer be reused. Upload a new file.';
+
+                continue;
+            }
+
+            $reused[$documentType] = $document;
+        }
+
+        if ($reuseErrors !== []) {
+            throw ValidationException::withMessages($reuseErrors);
+        }
 
         $application = LoanApplication::create([
             'user_id' => Auth::id(),
@@ -75,7 +109,7 @@ class LoanApplicationController extends Controller
         $locked = $lock->get();
 
         try {
-            $this->processUploads($application, $validated);
+            $this->processUploads($application, $validated, $reused);
             $this->assessor->assess($application);
         } finally {
             if ($locked) {
@@ -91,9 +125,18 @@ class LoanApplicationController extends Controller
             ->with('success', 'Application submitted successfully.');
     }
 
-    protected function processUploads(LoanApplication $application, array $validated): void
+    /**
+     * @param  array<string, Document>  $reused  checked earlier documents, by type
+     */
+    protected function processUploads(LoanApplication $application, array $validated, array $reused = []): void
     {
-        foreach (['id_document', 'payslip', 'bank_statement'] as $documentType) {
+        foreach (ReusableDocuments::TYPES as $documentType) {
+            if (isset($reused[$documentType])) {
+                $this->reuseDocument($application, $reused[$documentType]);
+
+                continue;
+            }
+
             $file = $validated[$documentType];
             $path = $file->storeAs(
                 'loan-applications/' . $application->id,
@@ -118,6 +161,36 @@ class LoanApplicationController extends Controller
                 microtime(true) - $ocrStartedAt
             ), ['application_id' => $application->id]);
         }
+    }
+
+    /**
+     * Point a new document at the earlier stored file and copy its OCR text; OCR is not run again.
+     * It keeps the original upload date, so the 90-day limit counts from the real upload.
+     */
+    protected function reuseDocument(LoanApplication $application, Document $source): void
+    {
+        $document = Document::create([
+            'application_id' => $application->id,
+            'type' => $source->type,
+            'file_path' => $source->file_path,
+            'uploaded_at' => $source->uploaded_at,
+            'reused_from_document_id' => $source->id,
+        ]);
+
+        if ($source->ocrResult !== null) {
+            OcrResult::create([
+                'document_id' => $document->id,
+                'extracted_text' => $source->ocrResult->extracted_text,
+                'extracted_fields' => $source->ocrResult->extracted_fields,
+                'confidence_score' => $source->ocrResult->confidence_score,
+            ]);
+        }
+
+        Log::info('Reused an earlier document', [
+            'application_id' => $application->id,
+            'document_id' => $document->id,
+            'reused_from_document_id' => $source->id,
+        ]);
     }
 
     public function confirmation(LoanApplication $application)

@@ -16,9 +16,6 @@
             'Bank assets' => $money($application->bank_asset_value),
             'Submitted' => $application->created_at?->format('j M Y') ?? '-',
         ];
-
-        // stored as "{type}-{uuid}-{original name}": show the original name only
-        $fileName = fn ($document) => preg_replace('/^' . preg_quote($document->type, '/') . '-[0-9a-f-]{36}-/i', '', basename($document->file_path));
     @endphp
 
     <div class="space-y-6">
@@ -61,7 +58,10 @@
                             </span>
                             <span class="min-w-0">
                                 <span class="block text-sm font-bold text-ink">{{ $documentLabels[$document->type] ?? ucfirst(str_replace('_', ' ', $document->type)) }}</span>
-                                <span class="block truncate text-xs text-body">{{ $fileName($document) }} - uploaded {{ \Illuminate\Support\Carbon::parse($document->uploaded_at)->format('j M Y') }}</span>
+                                <span class="block truncate text-xs text-body">{{ $document->fileExists() ? $document->displayName() : 'File no longer available' }} - uploaded {{ $document->uploaded_at?->format('j M Y') ?? '-' }}</span>
+                                @if ($document->isReused())
+                                    <span class="block text-xs font-semibold text-brand">Reused from earlier application</span>
+                                @endif
                             </span>
                         </div>
                     @empty

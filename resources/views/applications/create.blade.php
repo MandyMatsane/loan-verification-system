@@ -30,6 +30,14 @@
             'bank_statement' => 'Bank statement',
         ];
 
+        // per slot: the id of the earlier document to reuse, or '' to upload a new file (the default)
+        $reuseChoice = [];
+        foreach ($documents as $field => $label) {
+            $reuseChoice[$field] = isset($reusable[$field]) && (string) old($field . '_reuse') === (string) $reusable[$field]->id
+                ? (string) $reusable[$field]->id
+                : '';
+        }
+
         $steps = [1 => 'Loan details', 2 => 'Financial profile', 3 => 'Documents'];
 
         $fieldClass = 'mt-2 block w-full';
@@ -43,6 +51,7 @@
                 form: config.form,
                 submitting: false,
                 files: { id_document: null, payslip: null, bank_statement: null },
+                reuse: config.reuse,
                 names: { id_document: 'ID document', payslip: 'payslip', bank_statement: 'bank statement' },
                 steps: ['Loan details', 'Financial profile', 'Documents'],
                 pick(key, event) {
@@ -52,6 +61,9 @@
                         : null;
                 },
                 ok(key) {
+                    if (this.reuse[key] !== '') {
+                        return true;
+                    }
                     return this.files[key] !== null && ! this.files[key].tooLarge;
                 },
                 get chosen() {
@@ -106,6 +118,7 @@
                   'education' => old('education', ''),
                   'cibil_score_band' => old('cibil_score_band', ''),
               ],
+              'reuse' => $reuseChoice,
           ]) }})"
           @submit="submitting = true"
           class="space-y-6">
@@ -240,22 +253,41 @@
                     <div class="mt-5 grid gap-3 xl:grid-cols-3">
                         @foreach ($documents as $field => $label)
                             <div>
-                                <input id="{{ $field }}" type="file" name="{{ $field }}" accept=".jpg,.jpeg,.png" class="peer sr-only" @change="pick('{{ $field }}', $event)">
-                                <label for="{{ $field }}"
-                                       class="flex min-h-12 cursor-pointer items-center gap-3 rounded-2xl border-2 border-dashed border-brand bg-white p-4 transition hover:bg-brand-tint peer-focus-visible:ring-2 peer-focus-visible:ring-brand peer-focus-visible:ring-offset-2 xl:h-full xl:flex-col xl:items-start">
-                                    <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
-                                          :class="ok('{{ $field }}') ? 'bg-green-100 text-green-800' : 'bg-brand-tint text-brand'">
-                                        <x-icon name="upload" x-show="! ok('{{ $field }}')" />
-                                        <x-icon name="check" x-show="ok('{{ $field }}')" x-cloak />
-                                    </span>
-                                    <span class="min-w-0 flex-1 xl:w-full xl:flex-none">
-                                        <span class="block text-sm font-bold text-ink">{{ $label }}</span>
-                                        <span class="block truncate text-xs text-body"
-                                              x-text="files.{{ $field }} ? files.{{ $field }}.name + ' - ' + files.{{ $field }}.size : 'JPG or PNG, max 5MB'">JPG or PNG, max 5MB</span>
-                                        <span class="block text-xs font-semibold text-red-700" x-show="files.{{ $field }} && files.{{ $field }}.tooLarge" x-cloak>This file is larger than 5MB.</span>
-                                    </span>
-                                    <span class="shrink-0 text-sm font-bold text-brand" x-text="files.{{ $field }} ? 'Replace' : 'Choose file'">Choose file</span>
-                                </label>
+                                @isset ($reusable[$field])
+                                    <fieldset class="mb-3">
+                                        <legend class="text-sm font-bold text-ink">{{ $label }}</legend>
+                                        <label class="mt-1 flex min-h-11 cursor-pointer items-center gap-3 text-sm text-ink">
+                                            <input type="radio" name="{{ $field }}_reuse" value="" x-model="reuse.{{ $field }}"
+                                                   class="h-4 w-4 border-slate-300 text-brand focus:ring-brand" {{ $reuseChoice[$field] === '' ? 'checked' : '' }}>
+                                            Upload a new file
+                                        </label>
+                                        <label class="flex min-h-11 cursor-pointer items-center gap-3 text-sm text-ink">
+                                            <input type="radio" name="{{ $field }}_reuse" value="{{ $reusable[$field]->id }}" x-model="reuse.{{ $field }}"
+                                                   class="h-4 w-4 shrink-0 border-slate-300 text-brand focus:ring-brand" {{ $reuseChoice[$field] !== '' ? 'checked' : '' }}>
+                                            <span class="min-w-0 break-words">Reuse latest ({{ $reusable[$field]->displayName() }}, {{ $reusable[$field]->uploaded_at->format('j M Y') }})</span>
+                                        </label>
+                                    </fieldset>
+                                @endisset
+
+                                <div x-show="reuse.{{ $field }} === ''" @if ($reuseChoice[$field] !== '') x-cloak @endif>
+                                    <input id="{{ $field }}" type="file" name="{{ $field }}" accept=".jpg,.jpeg,.png" class="peer sr-only"
+                                           :disabled="reuse.{{ $field }} !== ''" @change="pick('{{ $field }}', $event)">
+                                    <label for="{{ $field }}"
+                                           class="flex min-h-12 cursor-pointer items-center gap-3 rounded-2xl border-2 border-dashed border-brand bg-white p-4 transition hover:bg-brand-tint peer-focus-visible:ring-2 peer-focus-visible:ring-brand peer-focus-visible:ring-offset-2 xl:h-full xl:flex-col xl:items-start">
+                                        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+                                              :class="ok('{{ $field }}') ? 'bg-green-100 text-green-800' : 'bg-brand-tint text-brand'">
+                                            <x-icon name="upload" x-show="! ok('{{ $field }}')" />
+                                            <x-icon name="check" x-show="ok('{{ $field }}')" x-cloak />
+                                        </span>
+                                        <span class="min-w-0 flex-1 xl:w-full xl:flex-none">
+                                            <span class="block text-sm font-bold text-ink">{{ $label }}</span>
+                                            <span class="block truncate text-xs text-body"
+                                                  x-text="files.{{ $field }} ? files.{{ $field }}.name + ' - ' + files.{{ $field }}.size : 'JPG or PNG, max 5MB'">JPG or PNG, max 5MB</span>
+                                            <span class="block text-xs font-semibold text-red-700" x-show="files.{{ $field }} && files.{{ $field }}.tooLarge" x-cloak>This file is larger than 5MB.</span>
+                                        </span>
+                                        <span class="shrink-0 text-sm font-bold text-brand" x-text="files.{{ $field }} ? 'Replace' : 'Choose file'">Choose file</span>
+                                    </label>
+                                </div>
                                 <x-input-error :messages="$errors->get($field)" class="mt-2" />
                             </div>
                         @endforeach
