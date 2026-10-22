@@ -15,4 +15,21 @@ return [
 
     'annual_interest_rate' => (float) env('LOAN_ANNUAL_INTEREST_RATE', 0.20),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Application limits
+    |--------------------------------------------------------------------------
+    |
+    | The amount (in rand) and term (in months) an applicant may ask for.
+    | Together with the rate cap in RepaymentCalculator these keep every
+    | stored amount well inside the decimal(12,2) columns.
+    |
+    */
+
+    'max_amount' => 100000,
+
+    'min_term' => 1,
+
+    'max_term' => 60,
+
 ];

@@ -53,11 +53,16 @@ class LoanApplicationController extends Controller
 
         $submissionStartedAt = microtime(true);
 
+        $maxAmount = (int) config('loan.max_amount');
+        $minTerm = (int) config('loan.min_term');
+        $maxTerm = (int) config('loan.max_term');
+        $termMessage = "Choose a term between {$minTerm} and {$maxTerm} months";
+
         $validated = $request->validate([
-            'amount_requested' => ['required', 'numeric', 'min:0.01'],
+            'amount_requested' => ['required', 'numeric', 'min:1', 'max:' . $maxAmount],
             'no_of_dependents' => ['required', 'integer', 'min:0'],
             'education' => ['required', 'in:Graduate,Not Graduate'],
-            'loan_term' => ['required', 'integer', 'min:1'],
+            'loan_term' => ['required', 'integer', 'min:' . $minTerm, 'max:' . $maxTerm],
             'cibil_score_band' => ['required', 'in:Poor,Fair,Good,Excellent'],
             'residential_assets_value' => ['required', 'numeric', 'min:0'],
             'commercial_assets_value' => ['required', 'numeric', 'min:0'],
@@ -67,6 +72,12 @@ class LoanApplicationController extends Controller
             'id_document' => ['required_without:id_document_reuse', 'nullable', 'file', 'mimes:jpg,jpeg,png', 'max:5120'],
             'payslip' => ['required_without:payslip_reuse', 'nullable', 'file', 'mimes:jpg,jpeg,png', 'max:5120'],
             'bank_statement' => ['required_without:bank_statement_reuse', 'nullable', 'file', 'mimes:jpg,jpeg,png', 'max:5120'],
+        ], [
+            'amount_requested.min' => 'The least you can apply for is R1',
+            'amount_requested.max' => 'The most you can apply for is R' . number_format($maxAmount),
+            'loan_term.integer' => $termMessage,
+            'loan_term.min' => $termMessage,
+            'loan_term.max' => $termMessage,
         ]);
 
         // never trust the id from the form: it must still be this user's own, recent document of that type

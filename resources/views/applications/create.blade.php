@@ -38,7 +38,11 @@
                 : '';
         }
 
-        $ratePercent = rtrim(rtrim(number_format((float) config('loan.annual_interest_rate') * 100, 2), '0'), '.') . '%';
+        $maxAmount = (int) config('loan.max_amount');
+        $minTerm = (int) config('loan.min_term');
+        $maxTerm = (int) config('loan.max_term');
+
+        $ratePercent =rtrim(rtrim(number_format((float) config('loan.annual_interest_rate') * 100, 2), '0'), '.') . '%';
 
         $steps = [1 => 'Loan details', 2 => 'Financial profile', 3 => 'Documents'];
 
@@ -59,7 +63,9 @@
                 get estimate() {
                     const amount = Number(this.form.amount_requested);
                     const term = Number(this.form.loan_term);
-                    if (String(this.form.amount_requested ?? '') === '' || ! (amount > 0) || ! Number.isInteger(term) || term < 1) {
+                    const limits = config.limits;
+                    if (String(this.form.amount_requested ?? '') === '' || ! (amount >= 1) || amount > limits.max_amount
+                        || ! Number.isInteger(term) || term < limits.min_term || term > limits.max_term) {
                         return null;
                     }
                     const round = (value) => Math.round((value + Number.EPSILON) * 100) / 100;
@@ -141,6 +147,7 @@
               ],
               'reuse' => $reuseChoice,
               'rate' => (float) config('loan.annual_interest_rate'),
+              'limits' => ['max_amount' => $maxAmount, 'min_term' => $minTerm, 'max_term' => $maxTerm],
           ]) }})"
           @submit="submitting = true"
           class="space-y-6">
@@ -201,15 +208,19 @@
                     <div class="mt-5 grid gap-5 md:grid-cols-2">
                         <div>
                             <x-input-label for="amount_requested" value="Amount requested (R)" />
-                            <x-text-input id="amount_requested" type="number" name="amount_requested" step="0.01" min="0.01" inputmode="decimal"
+                            <x-text-input id="amount_requested" type="number" name="amount_requested" step="0.01" min="1" max="{{ $maxAmount }}" inputmode="decimal"
+                                          aria-describedby="amount_requested_hint"
                                           x-model="form.amount_requested" value="{{ old('amount_requested') }}" :class="$fieldClass" />
+                            <p id="amount_requested_hint" class="mt-1 text-xs text-body">From R1 to R{{ number_format($maxAmount) }}</p>
                             <x-input-error :messages="$errors->get('amount_requested')" class="mt-2" />
                         </div>
 
                         <div>
                             <x-input-label for="loan_term" value="Loan term (months)" />
-                            <x-text-input id="loan_term" type="number" name="loan_term" min="1" inputmode="numeric"
+                            <x-text-input id="loan_term" type="number" name="loan_term" step="1" min="{{ $minTerm }}" max="{{ $maxTerm }}" inputmode="numeric"
+                                          aria-describedby="loan_term_hint"
                                           x-model="form.loan_term" value="{{ old('loan_term') }}" :class="$fieldClass" />
+                            <p id="loan_term_hint" class="mt-1 text-xs text-body">{{ $minTerm }} to {{ $maxTerm }} months</p>
                             <x-input-error :messages="$errors->get('loan_term')" class="mt-2" />
                         </div>
 

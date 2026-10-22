@@ -10,6 +10,9 @@ use InvalidArgumentException;
  */
 class RepaymentCalculator
 {
+    /** 100% a year: keeps interest_rate inside decimal(5,4) and totals inside decimal(12,2). */
+    public const MAX_ANNUAL_RATE = 1.0;
+
     /**
      * @return array{monthly_repayment: float, total_repayable: float, total_interest: float, rate: float}
      */
@@ -25,8 +28,8 @@ class RepaymentCalculator
             throw new InvalidArgumentException('The loan term must be at least 1 month.');
         }
 
-        if (! is_finite($annualRate) || $annualRate < 0) {
-            throw new InvalidArgumentException('The interest rate cannot be negative.');
+        if (! is_finite($annualRate) || $annualRate < 0 || $annualRate > self::MAX_ANNUAL_RATE) {
+            throw new InvalidArgumentException('The interest rate must be between 0 and ' . (self::MAX_ANNUAL_RATE * 100) . '% a year.');
         }
 
         $monthlyRate = $annualRate / 12;

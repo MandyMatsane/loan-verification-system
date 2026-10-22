@@ -182,7 +182,7 @@ class RepaymentEstimateTest extends TestCase
             ->assertSee('Repayment estimate')
             ->assertSee('Estimate only. Final terms are set by the lender.')
             ->assertSee('15%')
-            // the rate reaches Alpine as the last JSON value in the config
-            ->assertSee('u0022:0.15}', false);
+            // the rate reaches Alpine in the JSON config, followed by the limits
+            ->assertSee('u0022:0.15,', false);
     }
 }
