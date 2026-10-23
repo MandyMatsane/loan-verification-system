@@ -59,15 +59,68 @@
                 files: { id_document: null, payslip: null, bank_statement: null },
                 reuse: config.reuse,
                 rate: config.rate,
+                limits: config.limits,
+                // empty fields only count as errors once touched, or once the user tried to move on
+                touched: { amount_requested: false, loan_term: false },
+                triedNext: false,
+                // the same limits and wording as the server-side validation in LoanApplicationController
+                get amountError() {
+                    const raw = String(this.form.amount_requested ?? '').trim();
+                    const most = 'The most you can apply for is R' + this.limits.max_amount.toLocaleString('en-US');
+                    if (raw === '') {
+                        return this.touched.amount_requested || this.triedNext
+                            ? 'Enter an amount from R1 to R' + this.limits.max_amount.toLocaleString('en-US')
+                            : '';
+                    }
+                    const amount = Number(raw);
+                    if (! Number.isFinite(amount)) {
+                        return 'Enter an amount from R1 to R' + this.limits.max_amount.toLocaleString('en-US');
+                    }
+                    if (amount < 1) {
+                        return 'The least you can apply for is R1';
+                    }
+                    return amount > this.limits.max_amount ? most : '';
+                },
+                get termError() {
+                    const raw = String(this.form.loan_term ?? '').trim();
+                    const message = 'Choose a term between ' + this.limits.min_term + ' and ' + this.limits.max_term + ' months';
+                    if (raw === '') {
+                        return this.touched.loan_term || this.triedNext ? message : '';
+                    }
+                    const term = Number(raw);
+                    return Number.isInteger(term) && term >= this.limits.min_term && term <= this.limits.max_term ? '' : message;
+                },
+                // filled in and inside the limits
+                get amountValid() {
+                    return String(this.form.amount_requested ?? '').trim() !== '' && this.amountError === '';
+                },
+                get termValid() {
+                    return String(this.form.loan_term ?? '').trim() !== '' && this.termError === '';
+                },
+                get loanDetailsValid() {
+                    return this.amountValid && this.termValid;
+                },
+                // number inputs let through e, E, + and -: refuse those keys (and decimals in the term).
+                // Only keys and pastes are refused; a value already typed is never changed.
+                blockKeys(event, wholeNumber) {
+                    const blocked = wholeNumber ? ['e', 'E', '+', '-', '.', ','] : ['e', 'E', '+', '-'];
+                    if (blocked.includes(event.key)) {
+                        event.preventDefault();
+                    }
+                },
+                blockPaste(event, wholeNumber) {
+                    const text = (event.clipboardData || window.clipboardData).getData('text').trim();
+                    if (! (wholeNumber ? /^\d+$/ : /^\d+(\.\d*)?$|^\.\d+$/).test(text)) {
+                        event.preventDefault();
+                    }
+                },
                 // same formula as App\Services\RepaymentCalculator; the server works it out again on submit
                 get estimate() {
-                    const amount = Number(this.form.amount_requested);
-                    const term = Number(this.form.loan_term);
-                    const limits = config.limits;
-                    if (String(this.form.amount_requested ?? '') === '' || ! (amount >= 1) || amount > limits.max_amount
-                        || ! Number.isInteger(term) || term < limits.min_term || term > limits.max_term) {
+                    if (! this.loanDetailsValid) {
                         return null;
                     }
+                    const amount = Number(this.form.amount_requested);
+                    const term = Number(this.form.loan_term);
                     const round = (value) => Math.round((value + Number.EPSILON) * 100) / 100;
                     const monthlyRate = this.rate / 12;
                     const monthly = monthlyRate === 0
@@ -100,9 +153,12 @@
                     return Object.keys(this.files).filter((key) => ! this.ok(key)).map((key) => this.names[key]);
                 },
                 get canSubmit() {
-                    return this.missing.length === 0;
+                    return this.loanDetailsValid && this.missing.length === 0;
                 },
                 get helper() {
+                    if (! this.loanDetailsValid) {
+                        return 'Check the amount and loan term to continue';
+                    }
                     const missing = this.missing;
                     if (missing.length === 0) {
                         return 'All three documents are added.';
@@ -114,7 +170,8 @@
                 },
                 done(step) {
                     if (step === 1) {
-                        return ['amount_requested', 'loan_term', 'no_of_dependents', 'education'].every((key) => String(this.form[key] ?? '') !== '');
+                        return this.loanDetailsValid
+                            && ['no_of_dependents', 'education'].every((key) => String(this.form[key] ?? '') !== '');
                     }
                     if (step === 2) {
                         return String(this.form.cibil_score_band ?? '') !== '';
@@ -126,6 +183,13 @@
                         return '-';
                     }
                     return 'R' + Number(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                },
+                // a click on a disabled Next or Submit lands on its wrapper: show why it is disabled
+                tryNext() {
+                    this.triedNext = true;
+                },
+                termLabel() {
+                    return this.termValid ? this.form.loan_term + (Number(this.form.loan_term) === 1 ? ' month' : ' months') : '-';
                 },
                 go(step) {
                     this.step = step;
@@ -210,18 +274,34 @@
                             <x-input-label for="amount_requested" value="Amount requested (R)" />
                             <x-text-input id="amount_requested" type="number" name="amount_requested" step="0.01" min="1" max="{{ $maxAmount }}" inputmode="decimal"
                                           aria-describedby="amount_requested_hint"
+                                          ::aria-describedby="amountError ? 'amount_requested_error' : 'amount_requested_hint'"
+                                          ::aria-invalid="amountError ? 'true' : 'false'"
+                                          ::class="amountError && '!border-red-600 focus:!border-red-600 focus:!ring-red-600'"
+                                          @keydown="blockKeys($event, false)" @paste="blockPaste($event, false)"
+                                          @input="touched.amount_requested = true" @blur="touched.amount_requested = true"
                                           x-model="form.amount_requested" value="{{ old('amount_requested') }}" :class="$fieldClass" />
-                            <p id="amount_requested_hint" class="mt-1 text-xs text-body">From R1 to R{{ number_format($maxAmount) }}</p>
-                            <x-input-error :messages="$errors->get('amount_requested')" class="mt-2" />
+                            <p id="amount_requested_hint" class="mt-1 text-xs text-body" x-show="! amountError">From R1 to R{{ number_format($maxAmount) }}</p>
+                            <p id="amount_requested_error" class="mt-1 text-sm font-medium text-red-700" x-show="amountError" x-text="amountError" x-cloak></p>
+                            <div x-show="! amountError">
+                                <x-input-error :messages="$errors->get('amount_requested')" class="mt-2" />
+                            </div>
                         </div>
 
                         <div>
                             <x-input-label for="loan_term" value="Loan term (months)" />
                             <x-text-input id="loan_term" type="number" name="loan_term" step="1" min="{{ $minTerm }}" max="{{ $maxTerm }}" inputmode="numeric"
                                           aria-describedby="loan_term_hint"
+                                          ::aria-describedby="termError ? 'loan_term_error' : 'loan_term_hint'"
+                                          ::aria-invalid="termError ? 'true' : 'false'"
+                                          ::class="termError && '!border-red-600 focus:!border-red-600 focus:!ring-red-600'"
+                                          @keydown="blockKeys($event, true)" @paste="blockPaste($event, true)"
+                                          @input="touched.loan_term = true" @blur="touched.loan_term = true"
                                           x-model="form.loan_term" value="{{ old('loan_term') }}" :class="$fieldClass" />
-                            <p id="loan_term_hint" class="mt-1 text-xs text-body">{{ $minTerm }} to {{ $maxTerm }} months</p>
-                            <x-input-error :messages="$errors->get('loan_term')" class="mt-2" />
+                            <p id="loan_term_hint" class="mt-1 text-xs text-body" x-show="! termError">{{ $minTerm }} to {{ $maxTerm }} months</p>
+                            <p id="loan_term_error" class="mt-1 text-sm font-medium text-red-700" x-show="termError" x-text="termError" x-cloak></p>
+                            <div x-show="! termError">
+                                <x-input-error :messages="$errors->get('loan_term')" class="mt-2" />
+                            </div>
                         </div>
 
                         <div>
@@ -352,10 +432,14 @@
                 <div class="space-y-2 md:hidden">
                     <div class="flex gap-3">
                         <x-secondary-button class="flex-1" x-show="step > 1" x-cloak @click="go(step - 1)">Back</x-secondary-button>
-                        <x-primary-button type="button" class="flex-1" x-show="step < 3" @click="go(step + 1)">Next</x-primary-button>
-                        <x-primary-button class="flex-1" x-show="step === 3" x-cloak ::disabled="! canSubmit || submitting">
-                            <span x-text="submitting ? 'Submitting...' : 'Submit application'">Submit application</span>
-                        </x-primary-button>
+                        <div class="flex flex-1" x-show="step < 3" @click="tryNext()">
+                            <x-primary-button type="button" class="flex-1 disabled:pointer-events-none" ::disabled="step === 1 && ! loanDetailsValid" @click="go(step + 1)">Next</x-primary-button>
+                        </div>
+                        <div class="flex flex-1" x-show="step === 3" x-cloak @click="tryNext()">
+                            <x-primary-button class="flex-1 disabled:pointer-events-none" ::disabled="! canSubmit || submitting">
+                                <span x-text="submitting ? 'Submitting...' : 'Submit application'">Submit application</span>
+                            </x-primary-button>
+                        </div>
                     </div>
                     <p class="text-center text-sm text-body" x-show="step === 3" x-cloak x-text="helper" aria-live="polite"></p>
                 </div>
@@ -368,11 +452,11 @@
                 <dl class="mt-4 space-y-3 text-sm">
                     <div class="flex items-baseline justify-between gap-3">
                         <dt class="text-body">Amount</dt>
-                        <dd class="font-bold tabular-nums text-ink" x-text="money(form.amount_requested)">-</dd>
+                        <dd class="font-bold tabular-nums text-ink" x-text="amountValid ? money(form.amount_requested) : '-'">-</dd>
                     </div>
                     <div class="flex items-baseline justify-between gap-3">
                         <dt class="text-body">Term</dt>
-                        <dd class="font-bold text-ink" x-text="form.loan_term ? form.loan_term + (Number(form.loan_term) === 1 ? ' month' : ' months') : '-'">-</dd>
+                        <dd class="font-bold text-ink" x-text="termLabel()">-</dd>
                     </div>
                     <div class="flex items-baseline justify-between gap-3">
                         <dt class="text-body">Monthly repayment</dt>
@@ -397,9 +481,11 @@
                 </dl>
                 <p class="mt-3 text-xs text-body">Estimate only. Final terms are set by the lender.</p>
 
-                <x-primary-button class="mt-5 w-full" ::disabled="! canSubmit || submitting">
-                    <span x-text="submitting ? 'Submitting...' : 'Submit application'">Submit application</span>
-                </x-primary-button>
+                <div class="mt-5" @click="tryNext()">
+                    <x-primary-button class="w-full disabled:pointer-events-none" ::disabled="! canSubmit || submitting">
+                        <span x-text="submitting ? 'Submitting...' : 'Submit application'">Submit application</span>
+                    </x-primary-button>
+                </div>
                 <p class="mt-2 text-center text-sm text-body" x-text="helper" aria-live="polite"></p>
             </aside>
         </div>

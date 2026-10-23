@@ -123,6 +123,50 @@ class LoanLimitsTest extends TestCase
             ->assertSee('max="60"', false);
     }
 
+    public function test_the_form_has_the_live_validation_and_the_config_limits(): void
+    {
+        $this->actingAs($this->user)->get(route('applications.create'))
+            ->assertOk()
+            // the limits reach Alpine in the JSON config
+            ->assertSee('max_amount', false)
+            ->assertSee('u0022:100000,', false)
+            ->assertSee('u0022:60}}', false)
+            // the getters and the messages built from config.limits
+            ->assertSee('get amountError()', false)
+            ->assertSee('get termError()', false)
+            ->assertSee("'The most you can apply for is R' + this.limits.max_amount.toLocaleString('en-US')", false)
+            ->assertSee("'The least you can apply for is R1'", false)
+            ->assertSee("'Choose a term between ' + this.limits.min_term + ' and ' + this.limits.max_term + ' months'", false)
+            // error text, aria-invalid and a red border on both inputs
+            ->assertSee(':aria-invalid="amountError ? \'true\' : \'false\'"', false)
+            ->assertSee(':aria-invalid="termError ? \'true\' : \'false\'"', false)
+            ->assertSee('x-text="amountError"', false)
+            ->assertSee('x-text="termError"', false)
+            ->assertSee('!border-red-600', false)
+            // e, E, + and - blocked in both; no decimals in the term
+            ->assertSee('@keydown="blockKeys($event, false)"', false)
+            ->assertSee('@keydown="blockKeys($event, true)"', false)
+            ->assertSee("['e', 'E', '+', '-', '.', ',']", false)
+            // Next on step 1 and Submit wait for valid details; the summary shows "-" when out of range
+            ->assertSee(':disabled="step === 1 && ! loanDetailsValid"', false)
+            ->assertSee('return this.loanDetailsValid && this.missing.length === 0;', false)
+            ->assertSee('x-text="amountValid ? money(form.amount_requested) : \'-\'"', false)
+            ->assertSee('x-text="termLabel()"', false);
+    }
+
+    public function test_the_form_follows_changed_limits(): void
+    {
+        config(['loan.max_amount' => 50000, 'loan.min_term' => 3, 'loan.max_term' => 36]);
+
+        $this->actingAs($this->user)->get(route('applications.create'))
+            ->assertOk()
+            ->assertSee('From R1 to R50,000')
+            ->assertSee('3 to 36 months')
+            ->assertSee('u0022:50000,', false)
+            ->assertSee('u0022:3,', false)
+            ->assertSee('u0022:36}}', false);
+    }
+
     public function test_an_invalid_rate_is_refused(): void
     {
         $calculator = new RepaymentCalculator();
