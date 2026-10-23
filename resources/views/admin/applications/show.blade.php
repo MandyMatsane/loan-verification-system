@@ -3,13 +3,29 @@
         $assessment = $application->aiAssessment;
         $money = fn ($value) => 'R' . number_format((float) ($value ?? 0), 2);
 
-        // the document check prefixes its flags with "Document check:" when it sends an application to manual review;
-        // below 70% confidence the model would have sent it to manual review anyway
-        $documentCheckReview = $assessment
-            && strtolower(trim((string) $application->status)) === 'manual review'
-            && str_starts_with((string) $assessment->reasoning_notes, 'Document check:');
-        $overriddenByDocumentCheck = $documentCheckReview && (float) $assessment->confidence_score >= 70;
-        $lowConfidenceAndDocumentCheck = $documentCheckReview && (float) $assessment->confidence_score < 70;
+        // a check that sends an application to manual review puts its findings first, under its own prefix:
+        // "Document check:" first, then "Affordability check:". Below 70% confidence the model would have
+        // sent it to manual review anyway.
+        $notes = (string) $assessment?->reasoning_notes;
+        $inManualReview = $assessment && strtolower(trim((string) $application->status)) === 'manual review';
+        $flaggedByDocumentCheck = $inManualReview && str_starts_with($notes, \App\Services\ApplicationAssessor::DOCUMENT_CHECK_PREFIX);
+        $flaggedByAffordabilityCheck = $inManualReview
+            && (str_starts_with($notes, \App\Services\ApplicationAssessor::AFFORDABILITY_CHECK_PREFIX)
+                || str_contains($notes, "\n\n" . \App\Services\ApplicationAssessor::AFFORDABILITY_CHECK_PREFIX . "\n"));
+
+        $checkLine = match (true) {
+            $flaggedByDocumentCheck && $flaggedByAffordabilityCheck => 'Flagged by the document and affordability checks. See the reasoning notes.',
+            $flaggedByAffordabilityCheck => 'Flagged by the affordability check. See the reasoning notes.',
+            $flaggedByDocumentCheck && (float) $assessment->confidence_score >= 70 => 'Overridden by the document check. See the reasoning notes.',
+            $flaggedByDocumentCheck => 'Sent to manual review by low confidence and the document check. See the reasoning notes.',
+            default => null,
+        };
+
+        $statedIncome = $application->statedMonthlyIncome();
+        $payslipIncome = collect(['Gross' => $payslipFigures['gross'] ?? null, 'Net' => $payslipFigures['net'] ?? null])
+            ->filter(fn ($value) => $value !== null)
+            ->map(fn ($value, $label) => $label . ' ' . $money($value))
+            ->implode(', ');
 
         $documentLabels = ['id_document' => 'ID document', 'payslip' => 'Payslip', 'bank_statement' => 'Bank statement'];
 
@@ -23,6 +39,8 @@
             'Interest' => $repayment['interest'],
             'Dependents' => $application->no_of_dependents ?? '-',
             'Education' => $application->education ?? '-',
+            'Stated monthly income' => $statedIncome === null ? '-' : $money($statedIncome),
+            'Payslip income' => $payslipIncome !== '' ? $payslipIncome : 'Not found on the payslip',
         ];
 
         $assets = [
@@ -116,6 +134,9 @@
                                         <p class="text-xs font-semibold text-brand">Reused from earlier application</p>
                                     @endif
                                 </div>
+                                @if ($document->fileExists())
+                                    <a href="{{ route('documents.download', $document) }}" class="ml-auto flex min-h-11 shrink-0 items-center text-sm font-bold text-brand hover:text-brand-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-brand">Download</a>
+                                @endif
                             </div>
                             @if (filled(trim((string) $document->ocrResult?->extracted_text)))
                                 <pre class="mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-xl bg-slate-100 p-3 font-mono text-xs leading-5 text-slate-700" tabindex="0">{{ $document->ocrResult->extracted_text }}</pre>
@@ -135,10 +156,8 @@
                         <p class="text-xs text-slate-500">Model outcome</p>
                         <p class="mt-0.5 text-sm font-bold text-ink">{{ $assessment->eligibility_outcome }}</p>
 
-                        @if ($overriddenByDocumentCheck)
-                            <p class="mt-1 text-xs font-semibold text-amber-800">Overridden by the document check. See the reasoning notes.</p>
-                        @elseif ($lowConfidenceAndDocumentCheck)
-                            <p class="mt-1 text-xs font-semibold text-amber-800">Sent to manual review by low confidence and the document check. See the reasoning notes.</p>
+                        @if ($checkLine)
+                            <p class="mt-1 text-xs font-semibold text-amber-800">{{ $checkLine }}</p>
                         @endif
 
                         <x-confidence-bar class="mt-4" label="Confidence" :score="$assessment->confidence_score" />

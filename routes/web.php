@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\ApplicationController as AdminApplicationController;
+use App\Http\Controllers\DocumentDownloadController;
 use App\Http\Controllers\LoanApplicationController;
 use App\Http\Controllers\ProfileController;
 use App\Models\LoanApplication;
@@ -45,6 +46,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/applications/{application}/confirmation', [LoanApplicationController::class, 'confirmation'])->name('applications.confirmation');
     Route::get('/applications/{application}', [LoanApplicationController::class, 'show'])->name('applications.show');
     Route::post('/applications/{application}/documents', [LoanApplicationController::class, 'uploadDocument'])->name('applications.documents.store');
+    // admins and the document's owner only; checked in the controller
+    Route::get('/documents/{document}/download', DocumentDownloadController::class)->name('documents.download');
 
     // Admin routes
     Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {

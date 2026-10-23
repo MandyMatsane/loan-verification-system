@@ -39,7 +39,7 @@ class LoanLimitsTest extends TestCase
         $ocr->shouldReceive('process')->andReturnNull();
         $this->app->instance(OcrService::class, $ocr);
 
-        $this->user = User::factory()->create(['id_number' => '8001015009087', 'date_of_birth' => '1980-01-01']);
+        $this->user = User::factory()->create(['id_number' => '8001015009087', 'date_of_birth' => '1980-01-01', 'monthly_income' => 20000]);
     }
 
     private function submit(mixed $amount, mixed $term): TestResponse

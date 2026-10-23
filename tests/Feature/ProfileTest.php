@@ -17,9 +17,9 @@ class ProfileTest extends TestCase
     use RefreshDatabase;
 
     // what an applicant's profile needs before they can apply
-    private const COMPLETE_PROFILE = ['id_number' => '8001015009087', 'date_of_birth' => '1980-01-01'];
+    private const COMPLETE_PROFILE = ['id_number' => '8001015009087', 'date_of_birth' => '1980-01-01', 'monthly_income' => 20000];
 
-    private const PROFILE_MESSAGE = 'Add your ID number and date of birth before you apply.';
+    private const PROFILE_MESSAGE = 'Add your ID number, date of birth and monthly income before you apply.';
 
     private function createUser(array $attributes = []): User
     {
@@ -214,7 +214,7 @@ class ProfileTest extends TestCase
         ]);
 
         $this->assertDatabaseCount('documents', 3);
-        $this->assertTrue(Storage::disk('public')->exists('loan-applications/' . $user->id . '/'));
+        $this->assertTrue(Storage::disk('documents')->exists('loan-applications/' . $user->id . '/'));
     }
 
     public function test_uploaded_documents_create_ocr_results(): void
@@ -265,7 +265,10 @@ class ProfileTest extends TestCase
             [],
             ['id_number' => '8001015009087'],
             ['date_of_birth' => '1980-01-01'],
-            ['id_number' => '80010150090', 'date_of_birth' => '1980-01-01'],
+            ['id_number' => '80010150090', 'date_of_birth' => '1980-01-01', 'monthly_income' => 20000],
+            // a complete ID number and date of birth still need an income above 0
+            ['id_number' => '8001015009087', 'date_of_birth' => '1980-01-01'],
+            ['id_number' => '8001015009087', 'date_of_birth' => '1980-01-01', 'monthly_income' => 0],
         ] as $profile) {
             $this->actingAs($this->createUser($profile))
                 ->get('/applications/create')

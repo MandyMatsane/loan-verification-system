@@ -94,7 +94,7 @@ class RepaymentEstimateTest extends TestCase
         $this->app->instance(OcrService::class, $ocr);
 
         /** @var User $user */
-        $user = User::factory()->create(['id_number' => '8001015009087', 'date_of_birth' => '1980-01-01']);
+        $user = User::factory()->create(['id_number' => '8001015009087', 'date_of_birth' => '1980-01-01', 'monthly_income' => 20000]);
 
         $this->actingAs($user)->post('/applications', [
             'amount_requested' => '10000',
@@ -175,7 +175,7 @@ class RepaymentEstimateTest extends TestCase
         config(['loan.annual_interest_rate' => 0.15]);
 
         /** @var User $user */
-        $user = User::factory()->create(['id_number' => '8001015009087', 'date_of_birth' => '1980-01-01']);
+        $user = User::factory()->create(['id_number' => '8001015009087', 'date_of_birth' => '1980-01-01', 'monthly_income' => 20000]);
 
         $this->actingAs($user)->get(route('applications.create'))
             ->assertOk()

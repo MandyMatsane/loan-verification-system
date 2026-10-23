@@ -68,6 +68,9 @@
                                     <span class="block text-xs font-semibold text-brand">Reused from earlier application</span>
                                 @endif
                             </span>
+                            @if ($document->fileExists())
+                                <a href="{{ route('documents.download', $document) }}" class="ml-auto flex min-h-11 shrink-0 items-center text-sm font-bold text-brand hover:text-brand-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-brand">Download</a>
+                            @endif
                         </div>
                     @empty
                         <p class="text-sm text-body">No documents uploaded yet.</p>

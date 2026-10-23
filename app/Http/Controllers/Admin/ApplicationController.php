@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\LoanApplication;
 use App\Services\ApplicationAssessor;
+use App\Services\FraudCheckService;
 use App\Services\MlPredictionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -38,11 +39,14 @@ class ApplicationController extends Controller
         return view('admin.applications.feature-importance', compact('featureImportance'));
     }
 
-    public function show(LoanApplication $application)
+    public function show(LoanApplication $application, FraudCheckService $fraudCheckService)
     {
         $application->load('user', 'documents.ocrResult', 'aiAssessment');
 
-        return view('admin.applications.show', compact('application'));
+        // the gross and net pay read from the payslip, as the document check sees them
+        $payslipFigures = $fraudCheckService->payslipFigures($application);
+
+        return view('admin.applications.show', compact('application', 'payslipFigures'));
     }
 
     public function retry(LoanApplication $application, ApplicationAssessor $assessor): RedirectResponse

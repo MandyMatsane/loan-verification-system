@@ -2,12 +2,19 @@
 
 namespace App\Models;
 
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
 
 class Document extends Model
 {
-    protected $fillable = ['application_id', 'type', 'file_path', 'uploaded_at', 'reused_from_document_id'];
+    /** New uploads go here: not reachable by URL, only through the download route. */
+    public const PRIVATE_DISK = 'documents';
+
+    /** Where uploads were stored before; rows from then keep pointing here. */
+    public const LEGACY_DISK = 'public';
+
+    protected $fillable = ['application_id', 'type', 'file_path', 'uploaded_at', 'reused_from_document_id', 'disk'];
 
     protected $casts = [
         'uploaded_at' => 'datetime',
@@ -33,9 +40,17 @@ class Document extends Model
         return $this->reused_from_document_id !== null;
     }
 
+    /**
+     * The disk this document's file is on: rows without one predate the private disk.
+     */
+    public function storage(): Filesystem
+    {
+        return Storage::disk($this->disk ?: self::LEGACY_DISK);
+    }
+
     public function fileExists(): bool
     {
-        return filled($this->file_path) && Storage::disk('public')->exists($this->file_path);
+        return filled($this->file_path) && $this->storage()->exists($this->file_path);
     }
 
     /**

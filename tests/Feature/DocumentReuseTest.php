@@ -49,6 +49,7 @@ class DocumentReuseTest extends TestCase
             'name' => 'Thandi Mokoena',
             'id_number' => self::VALID_ID,
             'date_of_birth' => '1980-01-01',
+            'monthly_income' => 20000,
         ], $attributes));
 
         return $user;
@@ -236,7 +237,7 @@ class DocumentReuseTest extends TestCase
         $application = $this->latestApplication($user);
         $this->assertCount(3, $application->documents);
         $this->assertTrue($application->documents->every(fn (Document $document) => ! $document->isReused()));
-        $this->assertTrue($application->documents->every(fn (Document $document) => Storage::disk('public')->exists($document->file_path)));
+        $this->assertTrue($application->documents->every(fn (Document $document) => $document->fileExists() && $document->disk === Document::PRIVATE_DISK));
         $this->assertSame('Approved', $application->status);
     }
 

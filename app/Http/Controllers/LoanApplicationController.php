@@ -123,6 +123,8 @@ class LoanApplicationController extends Controller
             'interest_rate' => $estimate['rate'],
             'monthly_repayment' => $estimate['monthly_repayment'],
             'total_repayable' => $estimate['total_repayable'],
+            // the checks use the income as it was when they applied
+            'stated_monthly_income' => $request->user()->monthly_income,
         ]);
 
         // hold the lock while OCR runs so a page visit cannot retry this application half-way through
@@ -162,13 +164,14 @@ class LoanApplicationController extends Controller
             $path = $file->storeAs(
                 'loan-applications/' . $application->id,
                 $documentType . '-' . Str::uuid() . '-' . $file->getClientOriginalName(),
-                'public'
+                Document::PRIVATE_DISK
             );
 
             $document = Document::create([
                 'application_id' => $application->id,
                 'type' => $documentType,
                 'file_path' => $path,
+                'disk' => Document::PRIVATE_DISK,
                 'uploaded_at' => now(),
             ]);
 
@@ -194,6 +197,7 @@ class LoanApplicationController extends Controller
             'application_id' => $application->id,
             'type' => $source->type,
             'file_path' => $source->file_path,
+            'disk' => $source->disk ?: Document::LEGACY_DISK,
             'uploaded_at' => $source->uploaded_at,
             'reused_from_document_id' => $source->id,
         ]);
@@ -255,13 +259,14 @@ class LoanApplicationController extends Controller
         $path = $request->file('file')->storeAs(
             'loan-applications/' . $application->id,
             $validated['type'] . '-' . Str::uuid() . '-' . $request->file('file')->getClientOriginalName(),
-            'public'
+            Document::PRIVATE_DISK
         );
 
         $document = Document::create([
             'application_id' => $application->id,
             'type' => $validated['type'],
             'file_path' => $path,
+            'disk' => Document::PRIVATE_DISK,
             'uploaded_at' => now(),
         ]);
 
@@ -282,8 +287,9 @@ class LoanApplicationController extends Controller
     }
 
     /**
-     * Applicants need a 13-digit ID number and a date of birth before they apply:
-     * the document check compares both with the ID document. Admins are not affected.
+     * Applicants need a 13-digit ID number, a date of birth and a monthly income above 0 before they apply:
+     * the document check compares the first two with the ID document and the income with the payslip,
+     * and the affordability check uses the income. Admins are not affected.
      */
     protected function redirectIfProfileIncomplete(): ?RedirectResponse
     {
@@ -293,11 +299,11 @@ class LoanApplicationController extends Controller
             return null;
         }
 
-        if (preg_match('/^\d{13}$/', (string) $user->id_number) && filled($user->date_of_birth)) {
+        if (preg_match('/^\d{13}$/', (string) $user->id_number) && filled($user->date_of_birth) && (float) $user->monthly_income > 0) {
             return null;
         }
 
         return redirect()->route('profile.edit')
-            ->with('warning', 'Add your ID number and date of birth before you apply.');
+            ->with('warning', 'Add your ID number, date of birth and monthly income before you apply.');
     }
 }

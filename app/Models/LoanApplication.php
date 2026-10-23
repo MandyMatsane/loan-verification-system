@@ -23,6 +23,7 @@ class LoanApplication extends Model
         'interest_rate',
         'monthly_repayment',
         'total_repayable',
+        'stated_monthly_income',
     ];
 
     protected $casts = [
@@ -72,6 +73,32 @@ class LoanApplication extends Model
         }
 
         return $this->loan_term . ((int) $this->loan_term === 1 ? ' month' : ' months');
+    }
+
+    /**
+     * The monthly income the applicant stated when they applied; for older applications, their current profile income.
+     */
+    public function statedMonthlyIncome(): ?float
+    {
+        $income = $this->stated_monthly_income ?? $this->user?->monthly_income;
+
+        return $income === null ? null : (float) $income;
+    }
+
+    /**
+     * The monthly repayment the affordability check uses: the saved estimate, else amount / term.
+     */
+    public function monthlyRepaymentForChecks(): ?float
+    {
+        if ($this->monthly_repayment !== null) {
+            return (float) $this->monthly_repayment;
+        }
+
+        if ($this->amount_requested === null || (int) $this->loan_term < 1) {
+            return null;
+        }
+
+        return (float) $this->amount_requested / (int) $this->loan_term;
     }
 
     /**

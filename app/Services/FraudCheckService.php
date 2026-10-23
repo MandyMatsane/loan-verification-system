@@ -9,6 +9,10 @@ class FraudCheckService
 {
     public const ID_DOCUMENT_TYPE = 'id_document';
 
+    public const PAYSLIP_TYPE = 'payslip';
+
+    public const NOTE_PAYSLIP_UNREADABLE = 'Income could not be read from the payslip';
+
     public const NAME_SIMILARITY_THRESHOLD = 85;
 
     public const ID_NUMBER_LENGTH = 13;
@@ -27,12 +31,33 @@ class FraudCheckService
 
     public const FLAG_DATE_OF_BIRTH = 'ID number does not match the registered date of birth';
 
+    public function __construct(protected PayslipIncomeExtractor $payslipIncomeExtractor)
+    {
+    }
+
     /**
-     * Compare the applicant's registered details with the OCR text of their ID document.
+     * Compare the applicant's registered details with the OCR text of their ID document,
+     * and their stated income with the payslip.
+     * Flags send the application to manual review; notes are neutral and only recorded.
      *
-     * @return array{flags: string[], name_similarity: float}
+     * @return array{flags: string[], notes: string[], name_similarity: float}
      */
     public function check(LoanApplication $application): array
+    {
+        $result = $this->checkIdDocument($application);
+        $income = $this->checkPayslipIncome($application);
+
+        return [
+            'flags' => array_merge($result['flags'], $income['flags']),
+            'notes' => $income['notes'],
+            'name_similarity' => $result['name_similarity'],
+        ];
+    }
+
+    /**
+     * @return array{flags: string[], name_similarity: float}
+     */
+    protected function checkIdDocument(LoanApplication $application): array
     {
         $user = $application->user;
         $text = $this->normalise($this->idDocumentText($application));
@@ -75,6 +100,65 @@ class FraudCheckService
         }
 
         return ['flags' => $flags, 'name_similarity' => $nameSimilarity];
+    }
+
+    /**
+     * Compare the stated monthly income with whichever payslip figure (gross or net) is closest.
+     *
+     * @return array{flags: string[], notes: string[]}
+     */
+    protected function checkPayslipIncome(LoanApplication $application): array
+    {
+        $stated = $application->statedMonthlyIncome();
+
+        // without a stated income there is nothing to compare; the affordability check notes it
+        if ($stated === null || $stated <= 0) {
+            return ['flags' => [], 'notes' => []];
+        }
+
+        $figures = $this->payslipFigures($application);
+        $candidates = array_values(array_filter([$figures['gross'] ?? null, $figures['net'] ?? null]));
+
+        if ($candidates === []) {
+            return ['flags' => [], 'notes' => [self::NOTE_PAYSLIP_UNREADABLE]];
+        }
+
+        usort($candidates, fn (float $a, float $b) => abs($a - $stated) <=> abs($b - $stated));
+        $payslip = $candidates[0];
+
+        if (abs($stated - $payslip) / $payslip <= (float) config('loan.income_tolerance')) {
+            return ['flags' => [], 'notes' => []];
+        }
+
+        return [
+            'flags' => [sprintf(
+                'Stated income does not match the payslip (stated R%s, payslip R%s)',
+                number_format($stated, 2),
+                number_format($payslip, 2)
+            )],
+            'notes' => [],
+        ];
+    }
+
+    /**
+     * The gross and net pay read from the latest payslip, or null when neither was found.
+     *
+     * @return array{gross: ?float, net: ?float}|null
+     */
+    public function payslipFigures(LoanApplication $application): ?array
+    {
+        return $this->payslipIncomeExtractor->extract($this->documentText($application, self::PAYSLIP_TYPE));
+    }
+
+    protected function documentText(LoanApplication $application, string $type): string
+    {
+        // the latest upload wins when a document was uploaded more than once
+        $document = $application->documents()
+            ->where('type', $type)
+            ->latest('id')
+            ->first();
+
+        return (string) $document?->ocrResult?->extracted_text;
     }
 
     protected function idDocumentText(LoanApplication $application): string

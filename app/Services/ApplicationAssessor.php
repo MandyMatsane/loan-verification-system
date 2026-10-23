@@ -25,6 +25,13 @@ class ApplicationAssessor
 
     public const DEFAULT_TIMEOUT_SECONDS = 60;
 
+    /** Reasoning notes start with these when a check sends an application to manual review. */
+    public const DOCUMENT_CHECK_PREFIX = 'Document check:';
+
+    public const AFFORDABILITY_CHECK_PREFIX = 'Affordability check:';
+
+    public const NOTE_NO_INCOME = 'No income on file, affordability not checked';
+
     public function __construct(
         protected MlPredictionService $mlPredictionService,
         protected FraudCheckService $fraudCheckService,
@@ -47,6 +54,9 @@ class ApplicationAssessor
             'application_id' => $application->id,
         ]);
 
+        // affordability first: the document check then puts its findings in front,
+        // so the notes read document findings, affordability findings, the model's notes, then neutral notes
+        $this->applyAffordabilityCheck($application, $assessment);
         $this->applyDocumentCheck($application, $assessment);
 
         if ($assessment === null) {
@@ -176,21 +186,109 @@ class ApplicationAssessor
             'flags' => count($result['flags']),
         ]);
 
-        if ($result['flags'] === [] || $assessment === null) {
+        if ($assessment === null) {
             return;
         }
 
-        $notes = "Document check:\n- " . implode("\n- ", $result['flags']);
+        $this->appendNotes($assessment, $result['notes']);
+
+        if ($result['flags'] === []) {
+            $assessment->save();
+
+            return;
+        }
+
+        $this->prependFindings($assessment, self::DOCUMENT_CHECK_PREFIX, $result['flags']);
+        $assessment->fraud_risk_score = 'high';
+        $assessment->save();
+
+        $application->status = 'Manual Review';
+        $application->save();
+    }
+
+    /**
+     * Compare the monthly repayment with the stated monthly income. Above the limit the application
+     * goes to manual review and the fraud risk becomes at least medium.
+     * With no assessment (the ML call failed) the application stays Pending.
+     */
+    protected function applyAffordabilityCheck(LoanApplication $application, ?AiAssessment $assessment): void
+    {
+        if ($assessment === null) {
+            return;
+        }
+
+        $income = $application->statedMonthlyIncome();
+
+        if ($income === null || $income <= 0) {
+            $this->appendNotes($assessment, [self::NOTE_NO_INCOME]);
+            $assessment->save();
+
+            return;
+        }
+
+        $repayment = $application->monthlyRepaymentForChecks();
+        $limit = (float) config('loan.max_repayment_ratio');
+
+        if ($repayment === null || $repayment / $income <= $limit) {
+            return;
+        }
+
+        $this->prependFindings($assessment, self::AFFORDABILITY_CHECK_PREFIX, [sprintf(
+            'Requested repayment is %s%% of stated income (limit %s%%)',
+            $this->percent($repayment / $income),
+            $this->percent($limit)
+        )]);
+
+        // never lower an existing high
+        if (strtolower(trim((string) $assessment->fraud_risk_score)) !== 'high') {
+            $assessment->fraud_risk_score = 'medium';
+        }
+
+        $assessment->save();
+
+        $application->status = 'Manual Review';
+        $application->save();
+    }
+
+    /**
+     * Put a "Prefix:\n- finding" block in front of the notes.
+     *
+     * @param  string[]  $findings
+     */
+    protected function prependFindings(AiAssessment $assessment, string $prefix, array $findings): void
+    {
+        $notes = $prefix . "\n- " . implode("\n- ", $findings);
 
         if (filled($assessment->reasoning_notes)) {
             $notes .= "\n\n" . $assessment->reasoning_notes;
         }
 
-        $assessment->fraud_risk_score = 'high';
         $assessment->reasoning_notes = $notes;
-        $assessment->save();
+    }
 
-        $application->status = 'Manual Review';
-        $application->save();
+    /**
+     * Add neutral notes at the end; they never change the status or the fraud risk.
+     *
+     * @param  string[]  $notes
+     */
+    protected function appendNotes(AiAssessment $assessment, array $notes): void
+    {
+        if ($notes === []) {
+            return;
+        }
+
+        $lines = implode("\n", array_map(fn (string $note) => 'Note: ' . $note, $notes));
+
+        $assessment->reasoning_notes = filled($assessment->reasoning_notes)
+            ? $assessment->reasoning_notes . "\n\n" . $lines
+            : $lines;
+    }
+
+    /**
+     * 0.35 => "35", 0.70589 => "70.6"
+     */
+    protected function percent(float $fraction): string
+    {
+        return rtrim(rtrim(number_format($fraction * 100, 1), '0'), '.');
     }
 }

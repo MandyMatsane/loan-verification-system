@@ -32,4 +32,20 @@ return [
 
     'max_term' => 60,
 
+    /*
+    |--------------------------------------------------------------------------
+    | Income checks
+    |--------------------------------------------------------------------------
+    |
+    | income_tolerance: how far (as a fraction of the payslip figure) the stated
+    | monthly income may be from the closest payslip figure before the document
+    | check flags it. max_repayment_ratio: the largest monthly repayment, as a
+    | fraction of stated monthly income, before the affordability check flags it.
+    |
+    */
+
+    'income_tolerance' => 0.15,
+
+    'max_repayment_ratio' => 0.35,
+
 ];

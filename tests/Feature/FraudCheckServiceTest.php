@@ -22,6 +22,9 @@ class FraudCheckServiceTest extends TestCase
     // a 13-digit number that passes the Luhn checksum, born 1 January 1980
     private const VALID_ID = '8001015009087';
 
+    // as Tesseract reads the sample payslip
+    private const PAYSLIP_TEXT = "Payslip\nTotal Earnings 11600\nTotal Deductions 2100\nNet Pay 9500";
+
     private const ID_TEXT = "REPUBLIC OF SOUTH AFRICA\nSurname: MOKOENA\nNames: THANDI\nIdentity Number: 800101 5009 087\nDate of Birth: 01 JAN 1980";
 
     /**
@@ -134,7 +137,7 @@ class FraudCheckServiceTest extends TestCase
     }
 
     /**
-     * Submit an application as the given user, with OCR returning the given text for every document.
+     * Submit an application as the given user, with OCR returning the given text for the ID document and bank statement.
      */
     private function submitApplication(User $user, string $ocrText): LoanApplication
     {
@@ -151,7 +154,11 @@ class FraudCheckServiceTest extends TestCase
 
         $mock = Mockery::mock(OcrService::class);
         $mock->shouldReceive('process')->times(3)->andReturnUsing(
-            fn (Document $document) => OcrResult::create(['document_id' => $document->id, 'extracted_text' => $ocrText])
+            fn (Document $document) => OcrResult::create([
+                'document_id' => $document->id,
+                // the payslip matches the stated income, so only the ID document decides
+                'extracted_text' => $document->type === 'payslip' ? self::PAYSLIP_TEXT : $ocrText,
+            ])
         );
         $this->app->instance(OcrService::class, $mock);
 
@@ -182,6 +189,7 @@ class FraudCheckServiceTest extends TestCase
             'name' => 'John Smith',
             'id_number' => self::VALID_ID,
             'date_of_birth' => '1980-01-01',
+            'monthly_income' => 9500,
         ]);
 
         $application = $this->submitApplication($user, self::ID_TEXT);
@@ -200,6 +208,7 @@ class FraudCheckServiceTest extends TestCase
             'name' => 'Thandi Mokoena',
             'id_number' => self::VALID_ID,
             'date_of_birth' => '1980-01-01',
+            'monthly_income' => 9500,
         ]);
 
         $application = $this->submitApplication($user, self::ID_TEXT);
@@ -219,7 +228,7 @@ class FraudCheckServiceTest extends TestCase
         $this->app->instance(OcrService::class, $mock);
 
         /** @var User $user */
-        $user = User::factory()->create(['id_number' => self::VALID_ID, 'date_of_birth' => '1980-01-01']);
+        $user = User::factory()->create(['id_number' => self::VALID_ID, 'date_of_birth' => '1980-01-01', 'monthly_income' => 9500]);
 
         $this->actingAs($user)
             ->post('/applications', [

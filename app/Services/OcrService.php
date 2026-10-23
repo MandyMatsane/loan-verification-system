@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\Document;
 use App\Models\OcrResult;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 use Throwable;
 use thiagoalessio\TesseractOCR\TesseractOCR;
 
@@ -15,7 +14,7 @@ class OcrService
     {
         $filePath = $document->file_path;
 
-        if (blank($filePath) || !Storage::disk('public')->exists($filePath)) {
+        if (! $document->fileExists()) {
             Log::warning('OCR skipped because the stored file is missing.', [
                 'document_id' => $document->id,
                 'file_path' => $filePath,
@@ -24,7 +23,7 @@ class OcrService
             return null;
         }
 
-        $fullPath = Storage::disk('public')->path($filePath);
+        $fullPath = $document->storage()->path($filePath);
 
         try {
             $extractedText = (new TesseractOCR($fullPath))->run();
