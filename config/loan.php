@@ -65,4 +65,18 @@ return [
 
     'bank_statement_name_similarity' => 85,
 
+    /*
+    |--------------------------------------------------------------------------
+    | Duplicate document check
+    |--------------------------------------------------------------------------
+    |
+    | Flags a document whose file (by SHA-256 of its contents) was also
+    | submitted on another applicant's application. Switch it off with
+    | LOAN_DUPLICATE_CHECK=false, e.g. for demos where several test users
+    | upload the same sample files.
+    |
+    */
+
+    'duplicate_check_enabled' => env('LOAN_DUPLICATE_CHECK', true),
+
 ];

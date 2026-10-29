@@ -86,9 +86,10 @@ class IncomeChecksTest extends TestCase
             'commercial_assets_value' => 0,
             'luxury_assets_value' => 0,
             'bank_asset_value' => 0,
-            'id_document' => UploadedFile::fake()->image('id.jpg'),
-            'payslip' => UploadedFile::fake()->image('payslip.jpg'),
-            'bank_statement' => UploadedFile::fake()->image('bank.jpg'),
+            // a different image size per applicant, so the duplicate-document check does not see the same file twice
+            'id_document' => UploadedFile::fake()->image('id.jpg', 10 + $user->id, 10),
+            'payslip' => UploadedFile::fake()->image('payslip.jpg', 10 + $user->id, 10),
+            'bank_statement' => UploadedFile::fake()->image('bank.jpg', 10 + $user->id, 10),
         ])->assertSessionHasNoErrors()->assertRedirect();
 
         return LoanApplication::with('aiAssessment', 'documents')->where('user_id', $user->id)->latest('id')->firstOrFail();

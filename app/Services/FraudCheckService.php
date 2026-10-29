@@ -2,8 +2,10 @@
 
 namespace App\Services;
 
+use App\Models\Document;
 use App\Models\LoanApplication;
 use DateTimeInterface;
+use Illuminate\Database\Eloquent\Builder;
 
 class FraudCheckService
 {
@@ -20,6 +22,14 @@ class FraudCheckService
     public const NOTE_BANK_BALANCE_UNREADABLE = 'Balance could not be read from the bank statement';
 
     public const FLAG_BANK_STATEMENT_NAME = 'Name on the bank statement does not match the applicant';
+
+    public const DOCUMENT_LABELS = [
+        self::ID_DOCUMENT_TYPE => 'ID document',
+        self::PAYSLIP_TYPE => 'Payslip',
+        self::BANK_STATEMENT_TYPE => 'Bank statement',
+    ];
+
+    public const FLAG_DUPLICATE_FILE = 'This file was also submitted by another applicant (%s)';
 
     public const NAME_SIMILARITY_THRESHOLD = 85;
 
@@ -59,10 +69,49 @@ class FraudCheckService
         $bankStatement = $this->checkBankStatement($application);
 
         return [
-            'flags' => array_merge($result['flags'], $income['flags'], $bankStatement['flags']),
+            'flags' => array_merge($result['flags'], $income['flags'], $bankStatement['flags'], $this->checkDuplicateFiles($application)),
             'notes' => array_merge($income['notes'], $bankStatement['notes']),
             'name_similarity' => $result['name_similarity'],
         ];
+    }
+
+    /**
+     * Flag each document type whose latest file was also submitted on another user's application.
+     * The applicant's own earlier uploads and reused documents never count, and rows without a hash never match.
+     * Only the type is named: nothing about the other applicant is shown.
+     *
+     * @return string[]
+     */
+    protected function checkDuplicateFiles(LoanApplication $application): array
+    {
+        if (! config('loan.duplicate_check_enabled') || $application->user_id === null) {
+            return [];
+        }
+
+        $flags = [];
+
+        foreach (self::DOCUMENT_LABELS as $type => $label) {
+            // the latest upload wins when a document was uploaded more than once
+            $hash = $application->documents()
+                ->where('type', $type)
+                ->latest('id')
+                ->value('content_hash');
+
+            if (blank($hash)) {
+                continue;
+            }
+
+            $elsewhere = Document::query()
+                ->where('content_hash', $hash)
+                ->whereHas('LoanApplication', fn (Builder $query) => $query->where('user_id', '!=', $application->user_id))
+                ->exists();
+
+            if ($elsewhere) {
+                $flags[] = sprintf(self::FLAG_DUPLICATE_FILE, $label);
+            }
+        }
+
+        return $flags;
     }
 
     /**

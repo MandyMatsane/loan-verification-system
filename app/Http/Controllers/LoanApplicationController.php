@@ -195,6 +195,7 @@ class LoanApplicationController extends Controller
             }
 
             $file = $validated[$documentType];
+            $contentHash = hash_file(Document::HASH_ALGORITHM, $file->getRealPath()) ?: null;
             $path = $file->storeAs(
                 'loan-applications/' . $application->id,
                 $documentType . '-' . Str::uuid() . '-' . $file->getClientOriginalName(),
@@ -206,6 +207,7 @@ class LoanApplicationController extends Controller
                 'type' => $documentType,
                 'file_path' => $path,
                 'disk' => Document::PRIVATE_DISK,
+                'content_hash' => $contentHash,
                 'uploaded_at' => now(),
             ]);
 
@@ -242,6 +244,7 @@ class LoanApplicationController extends Controller
             'disk' => $source->disk ?: Document::LEGACY_DISK,
             'uploaded_at' => $source->uploaded_at,
             'reused_from_document_id' => $source->id,
+            'content_hash' => $source->content_hash,
         ]);
 
         if ($source->ocrResult !== null) {
@@ -298,6 +301,7 @@ class LoanApplicationController extends Controller
             'file' => 'required|file|mimes:jpg,jpeg,png|max:5120',
         ]);
 
+        $contentHash = hash_file(Document::HASH_ALGORITHM, $request->file('file')->getRealPath()) ?: null;
         $path = $request->file('file')->storeAs(
             'loan-applications/' . $application->id,
             $validated['type'] . '-' . Str::uuid() . '-' . $request->file('file')->getClientOriginalName(),
@@ -309,6 +313,7 @@ class LoanApplicationController extends Controller
             'type' => $validated['type'],
             'file_path' => $path,
             'disk' => Document::PRIVATE_DISK,
+            'content_hash' => $contentHash,
             'uploaded_at' => now(),
         ]);
 

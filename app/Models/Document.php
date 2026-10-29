@@ -14,7 +14,10 @@ class Document extends Model
     /** Where uploads were stored before; rows from then keep pointing here. */
     public const LEGACY_DISK = 'public';
 
-    protected $fillable = ['application_id', 'type', 'file_path', 'uploaded_at', 'reused_from_document_id', 'disk'];
+    protected $fillable = ['application_id', 'type', 'file_path', 'uploaded_at', 'reused_from_document_id', 'disk', 'content_hash'];
+
+    /** The algorithm for content_hash: SHA-256, 64 hex characters. */
+    public const HASH_ALGORITHM = 'sha256';
 
     protected $casts = [
         'uploaded_at' => 'datetime',
