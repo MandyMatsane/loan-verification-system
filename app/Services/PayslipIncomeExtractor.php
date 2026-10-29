@@ -5,7 +5,7 @@ namespace App\Services;
 use Throwable;
 
 /**
- * Reads the gross and net pay from a payslip's OCR text.
+ * Reads the gross and net pay, and the employee's name, from a payslip's OCR text.
  *
  * Looks for a label (e.g. "Net Pay", "Total Earnings") followed by an amount on the same line,
  * or on the next line when that line holds only the amount. Tesseract reads the sample payslip
@@ -19,6 +19,9 @@ class PayslipIncomeExtractor
     ];
 
     private const AMOUNT = AmountParser::PATTERN;
+
+    // "Employee name : Sally Harley" anywhere on a line (the sample has another column before it), or "Name:" at its start
+    private const NAME_LABEL = '(?:\bemployee\s*name|\bname\s*of\s*employee|^\s*name)\s*[:\-]\s*(.+)$';
 
     /**
      * @return array{gross: ?float, net: ?float}|null null when neither figure is found
@@ -38,6 +41,32 @@ class PayslipIncomeExtractor
             }
 
             return $figures['gross'] === null && $figures['net'] === null ? null : $figures;
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * The employee's name after its label, up to two spaces (the next column); null when none is found.
+     * Digits are kept: OCR can read a letter as one ("M0KOENA").
+     * Tesseract reads the sample payslip as "Date of Joining :2018-06-23 Employee name : Sally Harley".
+     */
+    public function employeeName(?string $text): ?string
+    {
+        try {
+            foreach (preg_split('/\R/u', (string) $text) as $line) {
+                if (! preg_match('/' . self::NAME_LABEL . '/iu', $line, $match)) {
+                    continue;
+                }
+
+                $name = trim(preg_split('/\s{2,}/u', trim($match[1]))[0], " \t.,:;-");
+
+                if ($name !== '') {
+                    return $name;
+                }
+            }
+
+            return null;
         } catch (Throwable) {
             return null;
         }

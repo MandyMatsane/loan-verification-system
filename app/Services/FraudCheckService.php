@@ -23,6 +23,8 @@ class FraudCheckService
 
     public const FLAG_BANK_STATEMENT_NAME = 'Name on the bank statement does not match the applicant';
 
+    public const FLAG_PAYSLIP_NAME = 'Name on the payslip does not match the applicant';
+
     public const DOCUMENT_LABELS = [
         self::ID_DOCUMENT_TYPE => 'ID document',
         self::PAYSLIP_TYPE => 'Payslip',
@@ -56,7 +58,7 @@ class FraudCheckService
     }
 
     /**
-     * Compare the applicant's registered details with the OCR text of their ID document and bank statement,
+     * Compare the applicant's registered details with the OCR text of their ID document, payslip and bank statement,
      * their stated income with the payslip, and their stated bank assets with the bank statement.
      * Flags send the application to manual review; notes are neutral and only recorded.
      *
@@ -65,11 +67,12 @@ class FraudCheckService
     public function check(LoanApplication $application): array
     {
         $result = $this->checkIdDocument($application);
+        $payslipName = $this->checkPayslipName($application);
         $income = $this->checkPayslipIncome($application);
         $bankStatement = $this->checkBankStatement($application);
 
         return [
-            'flags' => array_merge($result['flags'], $income['flags'], $bankStatement['flags'], $this->checkDuplicateFiles($application)),
+            'flags' => array_merge($result['flags'], $payslipName, $income['flags'], $bankStatement['flags'], $this->checkDuplicateFiles($application)),
             'notes' => array_merge($income['notes'], $bankStatement['notes']),
             'name_similarity' => $result['name_similarity'],
         ];
@@ -133,7 +136,9 @@ class FraudCheckService
         $notes = [];
 
         // the account holder line when there is one, otherwise anywhere on the statement
-        if (! $this->nameIsOnStatement((string) $application->user?->name, $statement['holder'] ?? $text)) {
+        $threshold = (float) config('loan.bank_statement_name_similarity');
+
+        if (! $this->nameIsOnDocument((string) $application->user?->name, $statement['holder'] ?? $text, $threshold)) {
             $flags[] = self::FLAG_BANK_STATEMENT_NAME;
         }
 
@@ -158,14 +163,34 @@ class FraudCheckService
     }
 
     /**
+     * The employee name on the payslip must match the applicant, the same way as on the bank statement.
+     * A payslip without a readable name is not flagged.
+     *
+     * @return string[]
+     */
+    protected function checkPayslipName(LoanApplication $application): array
+    {
+        $name = $this->payslipIncomeExtractor->employeeName($this->documentText($application, self::PAYSLIP_TYPE));
+
+        if ($name === null) {
+            return [];
+        }
+
+        $threshold = (float) config('loan.payslip_name_similarity');
+
+        return $this->nameIsOnDocument((string) $application->user?->name, $name, $threshold)
+            ? []
+            : [self::FLAG_PAYSLIP_NAME];
+    }
+
+    /**
      * The surname (last word of the name) must be found, and the first name or its initial.
      * Each is matched against every word with the same similarity measure as the ID check.
      */
-    protected function nameIsOnStatement(string $name, string $text): bool
+    protected function nameIsOnDocument(string $name, string $text, float $threshold): bool
     {
         $nameWords = array_values(array_filter(explode(' ', $this->normalise($name)), 'strlen'));
         $words = array_unique(explode(' ', $this->normalise($text)));
-        $threshold = (float) config('loan.bank_statement_name_similarity');
 
         if ($nameWords === []) {
             return false;

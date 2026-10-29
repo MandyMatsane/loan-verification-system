@@ -67,6 +67,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Payslip name check
+    |--------------------------------------------------------------------------
+    |
+    | The lowest similarity (0-100, matched as on the bank statement) at which
+    | the employee name on the payslip counts as the applicant's name.
+    |
+    */
+
+    'payslip_name_similarity' => 85,
+
+    /*
+    |--------------------------------------------------------------------------
     | Duplicate document check
     |--------------------------------------------------------------------------
     |
