@@ -323,9 +323,10 @@
 
                         <div>
                             @if ($profileEducation === 'Graduate')
-                                <p class="text-sm font-semibold text-ink">Education</p>
-                                <p class="mt-1 flex min-h-12 items-center text-sm font-bold text-ink">Graduate</p>
-                                <input type="hidden" name="education" value="Graduate">
+                                {{-- fixed by the profile: read-only, so it is still posted and read out with its label --}}
+                                <x-input-label for="education" value="Education" />
+                                <input id="education" type="text" name="education" value="Graduate" readonly
+                                       class="mt-2 block min-h-12 w-full cursor-default rounded-xl border-slate-300 bg-slate-100 px-4 text-ink focus:border-brand focus:ring-brand">
                             @else
                                 <x-input-label for="education" value="Education" />
                                 <select id="education" name="education" x-model="form.education" class="{{ $selectClass }}" aria-describedby="education_hint">

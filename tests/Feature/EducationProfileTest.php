@@ -118,15 +118,19 @@ class EducationProfileTest extends TestCase
         $this->assertSame('Not Graduate', $this->sentEducation());
     }
 
-    public function test_a_graduate_sees_fixed_text_and_a_posted_not_graduate_is_ignored(): void
+    public function test_a_graduate_sees_a_read_only_box_and_a_posted_not_graduate_is_ignored(): void
     {
         $user = $this->applicant('Graduate');
 
         $this->actingAs($user)->get(route('applications.create'))
             ->assertOk()
-            ->assertSee('<input type="hidden" name="education" value="Graduate">', false)
+            // a real input linked to its label, read-only, still posted as Graduate
+            ->assertSeeInOrder(['<label', 'for="education"', 'Education', '</label>', '<input id="education" type="text" name="education" value="Graduate" readonly'], false)
+            ->assertSee('bg-slate-100', false)
             ->assertDontSee('<select id="education"', false)
             ->assertDontSee('<option value="Not Graduate"', false)
+            // no hint under it
+            ->assertDontSee('education_hint', false)
             ->assertDontSee('From your profile');
 
         $this->apply($user, ['education' => 'Not Graduate'])->assertSessionHasNoErrors()->assertRedirect();
