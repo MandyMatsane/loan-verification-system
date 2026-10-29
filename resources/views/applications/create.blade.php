@@ -326,7 +326,6 @@
                                 <p class="text-sm font-semibold text-ink">Education</p>
                                 <p class="mt-1 flex min-h-12 items-center text-sm font-bold text-ink">Graduate</p>
                                 <input type="hidden" name="education" value="Graduate">
-                                <p class="mt-1 text-xs text-body">From your profile.</p>
                             @else
                                 <x-input-label for="education" value="Education" />
                                 <select id="education" name="education" x-model="form.education" class="{{ $selectClass }}" aria-describedby="education_hint">

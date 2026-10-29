@@ -126,7 +126,8 @@ class EducationProfileTest extends TestCase
             ->assertOk()
             ->assertSee('<input type="hidden" name="education" value="Graduate">', false)
             ->assertDontSee('<select id="education"', false)
-            ->assertDontSee('<option value="Not Graduate"', false);
+            ->assertDontSee('<option value="Not Graduate"', false)
+            ->assertDontSee('From your profile');
 
         $this->apply($user, ['education' => 'Not Graduate'])->assertSessionHasNoErrors()->assertRedirect();
 
