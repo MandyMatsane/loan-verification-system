@@ -6,6 +6,7 @@ use App\Jobs\ReadDocumentText;
 use App\Models\Document;
 use App\Models\LoanApplication;
 use App\Models\OcrResult;
+use App\Models\User;
 use App\Services\ApplicationAssessor;
 use App\Services\OcrService;
 use App\Services\RepaymentCalculator;
@@ -16,6 +17,7 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class LoanApplicationController extends Controller
@@ -66,10 +68,15 @@ class LoanApplicationController extends Controller
         $maxTerm = (int) config('loan.max_term');
         $termMessage = "Choose a term between {$minTerm} and {$maxTerm} months";
 
+        // a graduate stays a graduate, whatever the form sends
+        if ($request->user()->isGraduate()) {
+            $request->merge(['education' => User::GRADUATE]);
+        }
+
         $validated = $request->validate([
             'amount_requested' => ['required', 'numeric', 'min:1', 'max:' . $maxAmount],
             'no_of_dependents' => ['required', 'integer', 'min:0'],
-            'education' => ['required', 'in:Graduate,Not Graduate'],
+            'education' => ['required', Rule::in($request->user()->educationChoices())],
             'loan_term' => ['required', 'integer', 'min:' . $minTerm, 'max:' . $maxTerm],
             'cibil_score_band' => ['required', 'in:Poor,Fair,Good,Excellent'],
             'residential_assets_value' => ['required', 'numeric', 'min:0'],
@@ -134,6 +141,11 @@ class LoanApplicationController extends Controller
             // the checks use the income as it was when they applied
             'stated_monthly_income' => $request->user()->monthly_income,
         ]);
+
+        // the first choice is saved to the profile, as is a move from Not Graduate to Graduate
+        if ($request->user()->education !== $validated['education']) {
+            $request->user()->forceFill(['education' => $validated['education']])->save();
+        }
 
         // hold the lock while OCR runs so a page visit cannot retry this application half-way through
         $lock = $this->assessor->lock($application, 600);

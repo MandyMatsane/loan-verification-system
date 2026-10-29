@@ -87,6 +87,27 @@
             <x-input-error class="mt-2" :messages="$errors->get('monthly_income')" />
         </div>
 
+        <div>
+            @if ($user->isGraduate())
+                {{-- a graduate stays a graduate, so there is nothing to choose --}}
+                <p class="text-sm font-semibold text-ink">{{ __('Education') }}</p>
+                <p id="education" class="mt-1 text-sm font-bold text-ink">{{ \App\Models\User::GRADUATE }}</p>
+            @else
+                <x-input-label for="education" :value="__('Education')" />
+                <select id="education" name="education" aria-describedby="education_hint"
+                        class="mt-1 block min-h-11 w-full rounded-xl border-slate-300 bg-white px-4 py-3 text-ink focus:border-brand focus:ring-brand">
+                    @if (blank($user->education))
+                        <option value="">{{ __('Select education') }}</option>
+                    @endif
+                    @foreach ($user->educationChoices() as $option)
+                        <option value="{{ $option }}" @selected(old('education', $user->education) === $option)>{{ $option }}</option>
+                    @endforeach
+                </select>
+            @endif
+            <p id="education_hint" class="mt-1 text-xs text-body">{{ __('You can change from Not Graduate to Graduate when you graduate, but not back.') }}</p>
+            <x-input-error class="mt-2" :messages="$errors->get('education')" />
+        </div>
+
         <div class="flex items-center gap-4">
             <x-primary-button>{{ __('Save') }}</x-primary-button>
 

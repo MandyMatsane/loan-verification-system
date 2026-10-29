@@ -15,6 +15,9 @@
             }
         }
 
+        // education comes from the profile: a graduate's is fixed, anyone else may still choose Graduate
+        $profileEducation = auth()->user()->education;
+
         $bands = ['Poor' => '300-549', 'Fair' => '550-649', 'Good' => '650-749', 'Excellent' => '750-900'];
 
         $assets = [
@@ -213,7 +216,7 @@
                   'amount_requested' => old('amount_requested', ''),
                   'loan_term' => old('loan_term', ''),
                   'no_of_dependents' => old('no_of_dependents', ''),
-                  'education' => old('education', ''),
+                  'education' => $profileEducation === 'Graduate' ? 'Graduate' : old('education', $profileEducation ?? ''),
                   'cibil_score_band' => old('cibil_score_band', ''),
               ],
               'reuse' => $reuseChoice,
@@ -319,12 +322,22 @@
                         </div>
 
                         <div>
-                            <x-input-label for="education" value="Education" />
-                            <select id="education" name="education" x-model="form.education" class="{{ $selectClass }}">
-                                <option value="">Select education</option>
-                                <option value="Graduate" {{ old('education') == 'Graduate' ? 'selected' : '' }}>Graduate</option>
-                                <option value="Not Graduate" {{ old('education') == 'Not Graduate' ? 'selected' : '' }}>Not Graduate</option>
-                            </select>
+                            @if ($profileEducation === 'Graduate')
+                                <p class="text-sm font-semibold text-ink">Education</p>
+                                <p class="mt-1 flex min-h-12 items-center text-sm font-bold text-ink">Graduate</p>
+                                <input type="hidden" name="education" value="Graduate">
+                                <p class="mt-1 text-xs text-body">From your profile.</p>
+                            @else
+                                <x-input-label for="education" value="Education" />
+                                <select id="education" name="education" x-model="form.education" class="{{ $selectClass }}" aria-describedby="education_hint">
+                                    @if ($profileEducation === null)
+                                        <option value="">Select education</option>
+                                    @endif
+                                    <option value="Graduate" {{ old('education', $profileEducation) == 'Graduate' ? 'selected' : '' }}>Graduate</option>
+                                    <option value="Not Graduate" {{ old('education', $profileEducation) == 'Not Graduate' ? 'selected' : '' }}>Not Graduate</option>
+                                </select>
+                                <p id="education_hint" class="mt-1 text-xs text-body">{{ $profileEducation === null ? 'Saved to your profile when you apply.' : 'From your profile. Choose Graduate if you have graduated since.' }}</p>
+                            @endif
                             <x-input-error :messages="$errors->get('education')" class="mt-2" />
                         </div>
                     </div>
