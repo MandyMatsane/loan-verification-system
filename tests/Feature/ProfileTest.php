@@ -261,19 +261,22 @@ class ProfileTest extends TestCase
 
     public function test_applicant_without_id_number_and_date_of_birth_is_redirected_from_the_application_form(): void
     {
+        // the message lists only what is missing
         foreach ([
-            [],
-            ['id_number' => '8001015009087'],
-            ['date_of_birth' => '1980-01-01'],
-            ['id_number' => '80010150090', 'date_of_birth' => '1980-01-01', 'monthly_income' => 20000],
+            [[], self::PROFILE_MESSAGE],
+            [['id_number' => '8001015009087'], 'Add your date of birth and monthly income before you apply.'],
+            [['date_of_birth' => '1980-01-01'], 'Add your ID number and monthly income before you apply.'],
+            [['monthly_income' => 20000], 'Add your ID number and date of birth before you apply.'],
+            [['id_number' => '80010150090', 'date_of_birth' => '1980-01-01', 'monthly_income' => 20000], 'Add your ID number before you apply.'],
+            [['id_number' => '8001015009087', 'monthly_income' => 20000], 'Add your date of birth before you apply.'],
             // a complete ID number and date of birth still need an income above 0
-            ['id_number' => '8001015009087', 'date_of_birth' => '1980-01-01'],
-            ['id_number' => '8001015009087', 'date_of_birth' => '1980-01-01', 'monthly_income' => 0],
-        ] as $profile) {
+            [['id_number' => '8001015009087', 'date_of_birth' => '1980-01-01'], 'Add your monthly income before you apply.'],
+            [['id_number' => '8001015009087', 'date_of_birth' => '1980-01-01', 'monthly_income' => 0], 'Add your monthly income before you apply.'],
+        ] as [$profile, $message]) {
             $this->actingAs($this->createUser($profile))
                 ->get('/applications/create')
                 ->assertRedirect('/profile')
-                ->assertSessionHas('warning', self::PROFILE_MESSAGE);
+                ->assertSessionHas('warning', $message);
         }
     }
 

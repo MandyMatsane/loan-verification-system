@@ -25,7 +25,7 @@
         $payslipIncome = collect(['Gross' => $payslipFigures['gross'] ?? null, 'Net' => $payslipFigures['net'] ?? null])
             ->filter(fn ($value) => $value !== null)
             ->map(fn ($value, $label) => $label . ' ' . $money($value))
-            ->implode(', ');
+            ->implode(' · ');
 
         $documentLabels = ['id_document' => 'ID document', 'payslip' => 'Payslip', 'bank_statement' => 'Bank statement'];
 
@@ -98,9 +98,10 @@
                         </div>
 
                         @foreach ($details as $label => $value)
-                            <div>
+                            {{-- the gross and net payslip figures need two columns to stay on one line --}}
+                            <div @class(['col-span-2' => $label === 'Payslip income'])>
                                 <dt class="text-xs text-slate-500">{{ $label }}</dt>
-                                <dd class="mt-0.5 text-sm font-bold text-ink">{{ $value }}</dd>
+                                <dd @class(['mt-0.5 text-sm font-bold text-ink', 'whitespace-nowrap' => $label === 'Payslip income'])>{{ $value }}</dd>
                             </div>
                         @endforeach
 

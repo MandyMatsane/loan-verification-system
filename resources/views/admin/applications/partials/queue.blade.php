@@ -62,7 +62,8 @@
             <table class="min-w-full text-left text-sm">
                 <thead>
                     <tr class="border-b border-slate-200 text-xs font-semibold text-slate-500">
-                        <th scope="col" class="py-2 pr-4">Applicant</th>
+                        <th scope="col" class="py-2 pr-3">#</th>
+                        <th scope="col" class="px-3 py-2">Applicant</th>
                         <th scope="col" class="px-3 py-2">Amount</th>
                         <th scope="col" class="px-3 py-2">Status</th>
                         <th scope="col" class="px-3 py-2">Confidence</th>
@@ -74,7 +75,8 @@
                     @foreach ($rows as $i => $application)
                         @php $confidence = $application->aiAssessment?->confidence_score; @endphp
                         <tr x-show="ok(rows[{{ $i }}])">
-                            <td class="whitespace-nowrap py-2 pr-4 font-semibold text-ink">{{ $application->user?->name ?? 'Unknown' }}</td>
+                            <td class="whitespace-nowrap py-2 pr-3 tabular-nums text-body">{{ $application->id }}</td>
+                            <td class="whitespace-nowrap px-3 py-2 font-semibold text-ink">{{ $application->user?->name ?? 'Unknown' }}</td>
                             <td class="whitespace-nowrap px-3 py-2 tabular-nums text-ink">R{{ number_format($application->amount_requested, 2) }}</td>
                             <td class="px-3 py-2">
                                 <x-status-badge :status="$application->status" />
@@ -102,7 +104,7 @@
                 <li x-show="ok(rows[{{ $i }}])">
                     <a href="{{ route('admin.applications.show', $application) }}" class="block rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-brand">
                         <div class="flex items-start justify-between gap-3">
-                            <p class="min-w-0 truncate font-bold text-ink">{{ $application->user?->name ?? 'Unknown' }}</p>
+                            <p class="min-w-0 truncate font-bold text-ink"><span class="font-semibold tabular-nums text-body">#{{ $application->id }}</span> {{ $application->user?->name ?? 'Unknown' }}</p>
                             <span class="flex flex-wrap justify-end gap-1">
                                 <x-status-badge :status="$application->status" />
                                 @if ($application->needsManualRetry())

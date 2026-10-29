@@ -317,7 +317,7 @@ class BankStatementCheckTest extends TestCase
 
         $this->reviewPage($application)
             ->assertSee('Overridden by the document check. See the reasoning notes.')
-            ->assertSeeInOrder(['Payslip income', 'Gross R11,600.00, Net R9,500.00', 'Bank statement balance', 'R350.00'])
+            ->assertSeeInOrder(['Payslip income', 'Gross R11,600.00 · Net R9,500.00', 'Bank statement balance', 'R350.00'])
             ->assertSee(self::NAME_FLAG);
     }
 

@@ -24,6 +24,13 @@
             'bank_asset_value' => 'Bank assets (R)',
         ];
 
+        $assetHints = [
+            'residential_assets_value' => 'What the homes you own are worth today.',
+            'commercial_assets_value' => 'What the business property you own is worth.',
+            'luxury_assets_value' => 'What your cars, jewellery and other valuables are worth.',
+            'bank_asset_value' => 'The balance shown on your bank statement.',
+        ];
+
         $documents = [
             'id_document' => 'ID document',
             'payslip' => 'Payslip',
@@ -349,6 +356,7 @@
 
                     <fieldset class="mt-5">
                         <legend class="text-sm font-semibold text-ink">Credit score band</legend>
+                        <p class="mt-1 text-xs text-body">The range your latest credit score falls in.</p>
                         <div class="mt-2 grid grid-cols-2 gap-3 lg:grid-cols-4">
                             @foreach ($bands as $band => $range)
                                 <div>
@@ -370,7 +378,8 @@
                             <div>
                                 <x-input-label :for="$field" :value="$label" />
                                 <x-text-input :id="$field" type="number" :name="$field" step="0.01" min="0" inputmode="decimal"
-                                              value="{{ old($field, 0) }}" :class="$fieldClass" />
+                                              value="{{ old($field, 0) }}" :class="$fieldClass" aria-describedby="{{ $field }}_hint" />
+                                <p id="{{ $field }}_hint" class="mt-1 text-xs text-body">{{ $assetHints[$field] }}</p>
                                 <x-input-error :messages="$errors->get($field)" class="mt-2" />
                             </div>
                         @endforeach

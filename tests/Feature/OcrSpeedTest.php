@@ -286,7 +286,7 @@ class OcrSpeedTest extends TestCase
         $admin = User::factory()->create(['role' => 'admin']);
         $this->actingAs($admin)->get(route('admin.applications.show', $application))
             ->assertOk()
-            ->assertSee('Gross R11,600.00, Net R9,500.00')
+            ->assertSee('Gross R11,600.00 · Net R9,500.00')
             ->assertSeeInOrder(['Bank statement balance', 'R0.00'])
             ->assertDontSee('Text not read yet');
     }

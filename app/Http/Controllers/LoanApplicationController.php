@@ -12,6 +12,7 @@ use App\Services\RepaymentCalculator;
 use App\Services\ReusableDocuments;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -346,11 +347,18 @@ class LoanApplicationController extends Controller
             return null;
         }
 
-        if (preg_match('/^\d{13}$/', (string) $user->id_number) && filled($user->date_of_birth) && (float) $user->monthly_income > 0) {
+        $missing = array_keys(array_filter([
+            'ID number' => ! preg_match('/^\d{13}$/', (string) $user->id_number),
+            'date of birth' => blank($user->date_of_birth),
+            'monthly income' => (float) $user->monthly_income <= 0,
+        ]));
+
+        if ($missing === []) {
             return null;
         }
 
+        // only what is missing: "Add your monthly income", "Add your ID number and date of birth", ...
         return redirect()->route('profile.edit')
-            ->with('warning', 'Add your ID number, date of birth and monthly income before you apply.');
+            ->with('warning', 'Add your ' . Arr::join($missing, ', ', ' and ') . ' before you apply.');
     }
 }

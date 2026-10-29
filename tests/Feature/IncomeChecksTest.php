@@ -368,7 +368,7 @@ class IncomeChecksTest extends TestCase
         $this->assertEquals(9500, (float) $application->stated_monthly_income);
         $this->reviewPage($application)
             ->assertSeeInOrder(['Stated monthly income', 'R9,500.00'])
-            ->assertSeeInOrder(['Payslip income', 'Gross R11,600.00, Net R9,500.00']);
+            ->assertSeeInOrder(['Payslip income', 'Gross R11,600.00 · Net R9,500.00']);
     }
 
     public function test_older_applications_use_the_current_profile_income(): void
@@ -383,7 +383,7 @@ class IncomeChecksTest extends TestCase
     public function test_applicants_without_an_income_cannot_apply(): void
     {
         Http::fake();
-        $message = 'Add your ID number, date of birth and monthly income before you apply.';
+        $message = 'Add your monthly income before you apply.';
 
         foreach ([null, 0] as $income) {
             $user = $this->applicant($income, ['email' => 'no-income-' . var_export($income, true) . '@example.com']);
