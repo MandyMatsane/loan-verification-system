@@ -11,7 +11,15 @@ class FraudCheckService
 
     public const PAYSLIP_TYPE = 'payslip';
 
+    public const BANK_STATEMENT_TYPE = 'bank_statement';
+
     public const NOTE_PAYSLIP_UNREADABLE = 'Income could not be read from the payslip';
+
+    public const NOTE_BANK_STATEMENT_UNREADABLE = 'Bank statement could not be read';
+
+    public const NOTE_BANK_BALANCE_UNREADABLE = 'Balance could not be read from the bank statement';
+
+    public const FLAG_BANK_STATEMENT_NAME = 'Name on the bank statement does not match the applicant';
 
     public const NAME_SIMILARITY_THRESHOLD = 85;
 
@@ -31,13 +39,15 @@ class FraudCheckService
 
     public const FLAG_DATE_OF_BIRTH = 'ID number does not match the registered date of birth';
 
-    public function __construct(protected PayslipIncomeExtractor $payslipIncomeExtractor)
-    {
+    public function __construct(
+        protected PayslipIncomeExtractor $payslipIncomeExtractor,
+        protected BankStatementExtractor $bankStatementExtractor,
+    ) {
     }
 
     /**
-     * Compare the applicant's registered details with the OCR text of their ID document,
-     * and their stated income with the payslip.
+     * Compare the applicant's registered details with the OCR text of their ID document and bank statement,
+     * their stated income with the payslip, and their stated bank assets with the bank statement.
      * Flags send the application to manual review; notes are neutral and only recorded.
      *
      * @return array{flags: string[], notes: string[], name_similarity: float}
@@ -46,12 +56,94 @@ class FraudCheckService
     {
         $result = $this->checkIdDocument($application);
         $income = $this->checkPayslipIncome($application);
+        $bankStatement = $this->checkBankStatement($application);
 
         return [
-            'flags' => array_merge($result['flags'], $income['flags']),
-            'notes' => $income['notes'],
+            'flags' => array_merge($result['flags'], $income['flags'], $bankStatement['flags']),
+            'notes' => array_merge($income['notes'], $bankStatement['notes']),
             'name_similarity' => $result['name_similarity'],
         ];
+    }
+
+    /**
+     * The applicant's name must be on the bank statement, and the stated bank assets must be close to its balance.
+     * An unreadable statement, or one without a balance, is only noted.
+     *
+     * @return array{flags: string[], notes: string[]}
+     */
+    protected function checkBankStatement(LoanApplication $application): array
+    {
+        $text = $this->documentText($application, self::BANK_STATEMENT_TYPE);
+
+        if ($this->normalise($text) === '') {
+            return ['flags' => [], 'notes' => [self::NOTE_BANK_STATEMENT_UNREADABLE]];
+        }
+
+        $statement = $this->bankStatementExtractor->extract($text);
+        $flags = [];
+        $notes = [];
+
+        // the account holder line when there is one, otherwise anywhere on the statement
+        if (! $this->nameIsOnStatement((string) $application->user?->name, $statement['holder'] ?? $text)) {
+            $flags[] = self::FLAG_BANK_STATEMENT_NAME;
+        }
+
+        $stated = $application->bank_asset_value;
+
+        if ($statement['balance'] === null) {
+            $notes[] = self::NOTE_BANK_BALANCE_UNREADABLE;
+        } elseif ($stated !== null) {
+            $balance = $statement['balance'];
+
+            // relative to the statement balance; a zero balance only matches zero
+            if (abs((float) $stated - $balance) > (float) config('loan.bank_balance_tolerance') * $balance) {
+                $flags[] = sprintf(
+                    'Stated bank assets do not match the bank statement (stated R%s, statement R%s)',
+                    number_format((float) $stated, 2),
+                    number_format($balance, 2)
+                );
+            }
+        }
+
+        return ['flags' => $flags, 'notes' => $notes];
+    }
+
+    /**
+     * The surname (last word of the name) must be found, and the first name or its initial.
+     * Each is matched against every word with the same similarity measure as the ID check.
+     */
+    protected function nameIsOnStatement(string $name, string $text): bool
+    {
+        $nameWords = array_values(array_filter(explode(' ', $this->normalise($name)), 'strlen'));
+        $words = array_unique(explode(' ', $this->normalise($text)));
+        $threshold = (float) config('loan.bank_statement_name_similarity');
+
+        if ($nameWords === []) {
+            return false;
+        }
+
+        $surname = $nameWords[count($nameWords) - 1];
+
+        if ($this->bestWordMatch($surname, $words) < $threshold) {
+            return false;
+        }
+
+        if (count($nameWords) === 1) {
+            return true;
+        }
+
+        $firstName = $nameWords[0];
+
+        return $this->bestWordMatch($firstName, $words) >= $threshold
+            || in_array($firstName[0], $words, true);
+    }
+
+    /**
+     * The balance read from the latest bank statement, or null when none was found.
+     */
+    public function bankStatementBalance(LoanApplication $application): ?float
+    {
+        return $this->bankStatementExtractor->extract($this->documentText($application, self::BANK_STATEMENT_TYPE))['balance'];
     }
 
     /**
@@ -197,17 +289,27 @@ class FraudCheckService
         $total = 0.0;
 
         foreach ($nameWords as $nameWord) {
-            $best = 0.0;
-
-            foreach ($ocrWords as $ocrWord) {
-                similar_text($nameWord, $ocrWord, $percent);
-                $best = max($best, $percent);
-            }
-
-            $total += $best;
+            $total += $this->bestWordMatch($nameWord, $ocrWords);
         }
 
         return round($total / count($nameWords), 2);
+    }
+
+    /**
+     * The highest similar_text percentage between the word and any of the words.
+     *
+     * @param  string[]  $words
+     */
+    protected function bestWordMatch(string $word, array $words): float
+    {
+        $best = 0.0;
+
+        foreach ($words as $candidate) {
+            similar_text($word, $candidate, $percent);
+            $best = max($best, $percent);
+        }
+
+        return $best;
     }
 
     protected function passesLuhn(string $digits): bool

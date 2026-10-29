@@ -454,7 +454,7 @@ class ProfileTest extends TestCase
         foreach ([
             '/^TIMING ocr id_document \(\d+\.\d KB\) took \d+\.\d\ds$/',
             '/^TIMING ocr payslip \(\d+\.\d KB\) took \d+\.\d\ds$/',
-            '/^TIMING ocr bank_statement \(\d+\.\d KB\) after the response took \d+\.\d\ds$/',
+            '/^TIMING ocr bank_statement \(200\.0 KB\) took \d+\.\d\ds$/',
             '/^TIMING ml prediction took \d+\.\d\ds$/',
             '/^TIMING submission total took \d+\.\d\ds$/',
         ] as $pattern) {

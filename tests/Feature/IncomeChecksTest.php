@@ -30,6 +30,9 @@ class IncomeChecksTest extends TestCase
     // as Tesseract reads the sample payslip (dummy_payslip.jpg)
     private const SAMPLE_PAYSLIP = "Payslip\nZoonodle Inc\nEarnings Amount\nBasic 10000\nTotal Earnings 11600\nDeductions Amount\nTotal Deductions 2100\nNet Pay 9500\n9500\nNine Thousand Five Hundred";
 
+    // the applicant's name and the R0 bank assets the form sends, so the bank statement check passes
+    private const BANK_STATEMENT_TEXT = "Statement\nName: Thandi Mokoena\nClosing Balance: 0.00 ZAR";
+
     private const NOT_READABLE = 'Note: Income could not be read from the payslip';
 
     private const NO_INCOME = 'Note: No income on file, affordability not checked';
@@ -65,7 +68,7 @@ class IncomeChecksTest extends TestCase
             'extracted_text' => match ($document->type) {
                 'id_document' => self::ID_TEXT,
                 'payslip' => $payslipText,
-                default => 'BANK STATEMENT',
+                default => self::BANK_STATEMENT_TEXT,
             },
         ]));
         $this->app->instance(OcrService::class, $mock);
@@ -479,11 +482,11 @@ class IncomeChecksTest extends TestCase
     }
 
     /**
-     * An ID document and a payslip that OCR has already read, without files.
+     * An ID document, a payslip and a bank statement that OCR has already read, without files.
      */
     private function readDocuments(LoanApplication $application, string $payslipText): void
     {
-        foreach (['id_document' => self::ID_TEXT, 'payslip' => $payslipText] as $type => $text) {
+        foreach (['id_document' => self::ID_TEXT, 'payslip' => $payslipText, 'bank_statement' => self::BANK_STATEMENT_TEXT] as $type => $text) {
             $document = Document::create([
                 'application_id' => $application->id,
                 'type' => $type,

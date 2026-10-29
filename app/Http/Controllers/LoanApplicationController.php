@@ -19,8 +19,11 @@ use Illuminate\Validation\ValidationException;
 
 class LoanApplicationController extends Controller
 {
-    /** No check uses these documents' text, so they are read after the applicant has their response. */
-    public const READ_AFTER_RESPONSE = ['bank_statement'];
+    /**
+     * Document types whose text is read after the applicant has their response. Only for documents no check uses:
+     * every document is checked now, so the list is empty, but the mechanism is kept.
+     */
+    public const READ_AFTER_RESPONSE = [];
 
     protected OcrService $ocrService;
 

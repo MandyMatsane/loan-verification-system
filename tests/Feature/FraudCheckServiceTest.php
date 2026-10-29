@@ -156,8 +156,12 @@ class FraudCheckServiceTest extends TestCase
         $mock->shouldReceive('process')->times(3)->andReturnUsing(
             fn (Document $document) => OcrResult::create([
                 'document_id' => $document->id,
-                // the payslip matches the stated income, so only the ID document decides
-                'extracted_text' => $document->type === 'payslip' ? self::PAYSLIP_TEXT : $ocrText,
+                // the payslip and bank statement match the applicant, so only the ID document decides
+                'extracted_text' => match ($document->type) {
+                    'payslip' => self::PAYSLIP_TEXT,
+                    'bank_statement' => "Name: {$user->name}\nClosing Balance: 0.00",
+                    default => $ocrText,
+                },
             ])
         );
         $this->app->instance(OcrService::class, $mock);

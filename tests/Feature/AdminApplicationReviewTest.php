@@ -140,7 +140,7 @@ class AdminApplicationReviewTest extends TestCase
         $this->assertSame('-', (new LoanApplication())->loanTermLabel());
     }
 
-    public function test_documents_without_ocr_text_say_no_readable_text_was_found_or_not_read_yet(): void
+    public function test_documents_without_ocr_text_say_no_readable_text_was_found(): void
     {
         $application = $this->application('Approved', null);
 
@@ -155,7 +155,7 @@ class AdminApplicationReviewTest extends TestCase
             ]);
         }
 
-        // one with text, one with empty text, and a bank statement whose text is read after the response and has not been yet
+        // one with text, one with empty text, and one OCR never stored a result for
         OcrResult::create(['document_id' => $documents['id_document']->id, 'extracted_text' => 'REPUBLIC OF SOUTH AFRICA']);
         OcrResult::create(['document_id' => $documents['payslip']->id, 'extracted_text' => "  \n "]);
 
@@ -164,8 +164,9 @@ class AdminApplicationReviewTest extends TestCase
         $response
             ->assertSee('REPUBLIC OF SOUTH AFRICA')
             ->assertDontSee('Not processed yet')
-            ->assertSeeInOrder(['ID document', 'REPUBLIC OF SOUTH AFRICA', 'Payslip', 'No readable text was found in this file.', 'Bank statement', 'Text not read yet']);
+            ->assertSeeInOrder(['ID document', 'REPUBLIC OF SOUTH AFRICA', 'Payslip', 'No readable text was found in this file.', 'Bank statement', 'No readable text was found in this file.'])
+            ->assertDontSee('Text not read yet');
 
-        $this->assertSame(1, substr_count($response->getContent(), 'No readable text was found in this file.'));
+        $this->assertSame(2, substr_count($response->getContent(), 'No readable text was found in this file.'));
     }
 }

@@ -48,4 +48,21 @@ return [
 
     'max_repayment_ratio' => 0.35,
 
+    /*
+    |--------------------------------------------------------------------------
+    | Bank statement checks
+    |--------------------------------------------------------------------------
+    |
+    | bank_balance_tolerance: how far (as a fraction of the statement balance)
+    | the stated bank assets may be from the balance on the bank statement
+    | before the document check flags it. bank_statement_name_similarity: the
+    | lowest similarity (0-100, as in the ID check) at which a word on the
+    | statement counts as the applicant's surname or first name.
+    |
+    */
+
+    'bank_balance_tolerance' => 0.20,
+
+    'bank_statement_name_similarity' => 85,
+
 ];

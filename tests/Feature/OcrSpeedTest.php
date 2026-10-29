@@ -29,6 +29,9 @@ class OcrSpeedTest extends TestCase
     // as Tesseract reads the sample payslip
     private const PAYSLIP_TEXT = "Payslip\nTotal Earnings 11600\nTotal Deductions 2100\nNet Pay 9500";
 
+    // the applicant's name and the R0 bank assets the form sends
+    private const BANK_STATEMENT_TEXT = "Statement\nName: Thandi Mokoena\nClosing Balance: 0.00 ZAR";
+
     /**
      * A stored document holding a real image of the given size.
      */
@@ -235,7 +238,7 @@ class OcrSpeedTest extends TestCase
                 'extracted_text' => match ($document->type) {
                     'id_document' => self::ID_TEXT,
                     'payslip' => self::PAYSLIP_TEXT,
-                    default => 'BANK STATEMENT TEXT',
+                    default => self::BANK_STATEMENT_TEXT,
                 },
             ]);
         });
@@ -257,7 +260,7 @@ class OcrSpeedTest extends TestCase
         ]);
     }
 
-    public function test_the_bank_statement_is_read_after_the_response_and_the_checks_still_see_the_id_and_payslip(): void
+    public function test_all_three_documents_are_read_during_the_submission_and_the_checks_see_them(): void
     {
         Bus::fake([ReadDocumentText::class]);
         $user = $this->applicant();
@@ -265,54 +268,27 @@ class OcrSpeedTest extends TestCase
 
         $response = $this->submit($user, $read)->assertRedirect();
 
-        // only the ID and payslip were read during the request
-        $this->assertSame(['id_document', 'payslip'], $read);
+        // nothing is left for after the response
+        $this->assertSame([], \App\Http\Controllers\LoanApplicationController::READ_AFTER_RESPONSE);
+        $this->assertSame(['id_document', 'payslip', 'bank_statement'], $read);
+        Bus::assertNothingDispatched();
+        $this->assertFalse($response->headers->has('Connection'));
 
-        $application = LoanApplication::with('documents', 'aiAssessment')->where('user_id', $user->id)->firstOrFail();
-        $bankStatement = $application->documents->firstWhere('type', 'bank_statement');
+        $application = LoanApplication::with('documents.ocrResult', 'aiAssessment')->where('user_id', $user->id)->firstOrFail();
 
-        Bus::assertDispatchedAfterResponse(ReadDocumentText::class, fn (ReadDocumentText $job) => $job->documentId === $bankStatement->id);
-        Bus::assertDispatchedAfterResponseTimes(ReadDocumentText::class, 1);
-
-        // the browser can follow the redirect while the bank statement is read
-        $this->assertSame('close', $response->headers->get('Connection'));
-        $this->assertSame((string) strlen($response->getContent()), $response->headers->get('Content-Length'));
-
-        // the name, ID number and payslip income all matched, so the model's result stands
+        // the name, ID number, payslip income, and bank statement name and balance all matched
         $this->assertSame('Approved', $application->status);
         $this->assertSame('low', $application->aiAssessment->fraud_risk_score);
         $this->assertSame('Strong repayment profile.', $application->aiAssessment->reasoning_notes);
-        $this->assertNull($bankStatement->ocrResult);
+        $this->assertSame(self::BANK_STATEMENT_TEXT, $application->documents->firstWhere('type', 'bank_statement')->ocrResult->extracted_text);
 
         /** @var User $admin */
         $admin = User::factory()->create(['role' => 'admin']);
         $this->actingAs($admin)->get(route('admin.applications.show', $application))
             ->assertOk()
-            ->assertSeeInOrder(['Bank statement', 'Text not read yet'])
-            ->assertSee('Gross R11,600.00, Net R9,500.00');
-
-        $this->actingAs($user)->get(route('applications.confirmation', $application))->assertOk();
-        $this->actingAs($user)->get(route('applications.show', $application))->assertOk();
-
-        // when it runs, the text shows
-        (new ReadDocumentText($bankStatement->id))->handle(app(OcrService::class));
-
-        $this->assertSame(['id_document', 'payslip', 'bank_statement'], $read);
-        $this->actingAs($admin)->get(route('admin.applications.show', $application))
-            ->assertOk()
-            ->assertSee('BANK STATEMENT TEXT')
+            ->assertSee('Gross R11,600.00, Net R9,500.00')
+            ->assertSeeInOrder(['Bank statement balance', 'R0.00'])
             ->assertDontSee('Text not read yet');
-    }
-
-    public function test_without_faking_the_bank_statement_is_read_once_the_response_is_done(): void
-    {
-        $user = $this->applicant();
-        $read = [];
-
-        $this->submit($user, $read)->assertRedirect();
-
-        $this->assertSame(['id_document', 'payslip', 'bank_statement'], $read);
-        $this->assertSame(3, OcrResult::count());
     }
 
     public function test_a_reused_bank_statement_is_not_read_again(): void

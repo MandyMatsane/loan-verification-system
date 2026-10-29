@@ -27,6 +27,8 @@ class DocumentReuseTest extends TestCase
 
     private const TYPES = ['id_document', 'payslip', 'bank_statement'];
 
+    private const BANK_STATEMENT_TEXT = "BANK STATEMENT\nName: Thandi Mokoena\nClosing Balance: 0.00";
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -83,7 +85,11 @@ class DocumentReuseTest extends TestCase
 
             OcrResult::create([
                 'document_id' => $documents[$type]->id,
-                'extracted_text' => $type === 'id_document' ? $idText : strtoupper($type) . ' TEXT',
+                'extracted_text' => match ($type) {
+                    'id_document' => $idText,
+                    'bank_statement' => self::BANK_STATEMENT_TEXT,
+                    default => strtoupper($type) . ' TEXT',
+                },
             ]);
         }
 
@@ -95,7 +101,11 @@ class DocumentReuseTest extends TestCase
         $mock = Mockery::mock(OcrService::class);
         $mock->shouldReceive('process')->times($times)->andReturnUsing(fn (Document $document) => OcrResult::create([
             'document_id' => $document->id,
-            'extracted_text' => $document->type === 'id_document' ? self::ID_TEXT : 'NEW UPLOAD TEXT',
+            'extracted_text' => match ($document->type) {
+                'id_document' => self::ID_TEXT,
+                'bank_statement' => self::BANK_STATEMENT_TEXT,
+                default => 'NEW UPLOAD TEXT',
+            },
         ]));
         $this->app->instance(OcrService::class, $mock);
     }

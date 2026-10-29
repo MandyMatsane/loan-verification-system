@@ -45,8 +45,9 @@ class ApplicationController extends Controller
 
         // the gross and net pay read from the payslip, as the document check sees them
         $payslipFigures = $fraudCheckService->payslipFigures($application);
+        $bankStatementBalance = $fraudCheckService->bankStatementBalance($application);
 
-        return view('admin.applications.show', compact('application', 'payslipFigures'));
+        return view('admin.applications.show', compact('application', 'payslipFigures', 'bankStatementBalance'));
     }
 
     public function retry(LoanApplication $application, ApplicationAssessor $assessor): RedirectResponse

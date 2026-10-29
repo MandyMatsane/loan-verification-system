@@ -41,6 +41,7 @@
             'Education' => $application->education ?? '-',
             'Stated monthly income' => $statedIncome === null ? '-' : $money($statedIncome),
             'Payslip income' => $payslipIncome !== '' ? $payslipIncome : 'Not found on the payslip',
+            'Bank statement balance' => $bankStatementBalance === null ? 'Not found on the bank statement' : $money($bankStatementBalance),
         ];
 
         $assets = [
