@@ -151,7 +151,32 @@ class OcrService
         // the Tesseract process inherits this; set here too in case the server environment does not have it
         putenv('OMP_THREAD_LIMIT=' . self::THREAD_LIMIT);
 
-        return (new TesseractOCR($path))->run();
+        $command = new TesseractCommand();
+        $command->executable = self::tesseractExecutable();
+
+        // one Tesseract run per call: no version check, no second pass
+        return (new TesseractOCR($path, $command))->run();
+    }
+
+    /**
+     * The full path of the tesseract program on the PATH, so the wrapper finds it with a file check instead of
+     * starting a shell for every document. "tesseract" when it is not found: the wrapper then reports it as before.
+     */
+    public static function tesseractExecutable(): string
+    {
+        $names = PHP_OS_FAMILY === 'Windows' ? ['tesseract.exe', 'tesseract'] : ['tesseract'];
+
+        foreach (explode(PATH_SEPARATOR, (string) getenv('PATH')) as $directory) {
+            foreach ($names as $name) {
+                $candidate = rtrim($directory, '/\\') . DIRECTORY_SEPARATOR . $name;
+
+                if ($directory !== '' && is_file($candidate) && is_executable($candidate)) {
+                    return $candidate;
+                }
+            }
+        }
+
+        return 'tesseract';
     }
 
     protected function failed(Document $document, Throwable $e): ?OcrResult

@@ -10,13 +10,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       tesseract-ocr tesseract-ocr-eng libzip-dev libpng-dev libjpeg-dev \
       libfreetype6-dev libonig-dev libxml2-dev unzip git \
     && docker-php-ext-configure gd --with-jpeg --with-freetype \
-    && docker-php-ext-install pdo_mysql mbstring zip gd bcmath exif \
+    && docker-php-ext-install pdo_mysql mbstring zip gd bcmath exif opcache \
     && a2enmod rewrite headers \
     && rm -rf /var/lib/apt/lists/*
 
 RUN { echo "upload_max_filesize=6M"; echo "post_max_size=20M"; \
       echo "memory_limit=256M"; echo "max_execution_time=300"; } \
     > /usr/local/etc/php/conf.d/app.ini
+
+# keep compiled PHP in memory between requests; the code in the image never changes, so skip the file checks
+RUN { echo "opcache.enable=1"; echo "opcache.memory_consumption=128"; \
+      echo "opcache.interned_strings_buffer=16"; echo "opcache.max_accelerated_files=20000"; \
+      echo "opcache.validate_timestamps=0"; } \
+    > /usr/local/etc/php/conf.d/opcache-app.ini
 
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
 # one Tesseract thread: OpenMP threads fight over a small shared CPU and make OCR several times slower
