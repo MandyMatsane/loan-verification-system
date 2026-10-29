@@ -140,6 +140,8 @@
                             </div>
                             @if (filled(trim((string) $document->ocrResult?->extracted_text)))
                                 <pre class="mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-xl bg-slate-100 p-3 font-mono text-xs leading-5 text-slate-700" tabindex="0">{{ $document->ocrResult->extracted_text }}</pre>
+                            @elseif ($document->ocrResult === null && in_array($document->type, \App\Http\Controllers\LoanApplicationController::READ_AFTER_RESPONSE, true))
+                                <p class="mt-2 rounded-xl bg-slate-100 p-3 text-sm text-body">Text not read yet</p>
                             @else
                                 <p class="mt-2 rounded-xl bg-slate-100 p-3 text-sm text-body">No readable text was found in this file.</p>
                             @endif

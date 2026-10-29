@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\ReadDocumentText;
 use App\Models\Document;
 use App\Models\LoanApplication;
 use App\Models\OcrResult;
@@ -18,6 +19,9 @@ use Illuminate\Validation\ValidationException;
 
 class LoanApplicationController extends Controller
 {
+    /** No check uses these documents' text, so they are read after the applicant has their response. */
+    public const READ_AFTER_RESPONSE = ['bank_statement'];
+
     protected OcrService $ocrService;
 
     protected ApplicationAssessor $assessor;
@@ -132,7 +136,7 @@ class LoanApplicationController extends Controller
         $locked = $lock->get();
 
         try {
-            $this->processUploads($application, $validated, $reused);
+            $readLater = $this->processUploads($application, $validated, $reused);
             $this->assessor->assess($application);
         } finally {
             if ($locked) {
@@ -142,17 +146,44 @@ class LoanApplicationController extends Controller
 
         Log::info(sprintf('TIMING submission total took %.2fs', microtime(true) - $submissionStartedAt), [
             'application_id' => $application->id,
+            'read_after_response' => count($readLater),
         ]);
 
-        return redirect()->route('applications.confirmation', $application)
+        $response = redirect()->route('applications.confirmation', $application)
             ->with('success', 'Application submitted successfully.');
+
+        if ($readLater !== []) {
+            foreach ($readLater as $document) {
+                ReadDocumentText::dispatchAfterResponse($document->id);
+            }
+
+            $this->finishResponseFirst($response);
+        }
+
+        return $response;
+    }
+
+    /**
+     * Apache's PHP module keeps the connection open while work runs after the response. A known length and
+     * "Connection: close" let the browser treat the response as complete and follow the redirect straight away.
+     */
+    protected function finishResponseFirst(RedirectResponse $response): void
+    {
+        $response->headers->set('Content-Length', (string) strlen((string) $response->getContent()));
+        $response->headers->set('Connection', 'close');
+
+        // keep going if the browser goes away before the work is done
+        ignore_user_abort(true);
     }
 
     /**
      * @param  array<string, Document>  $reused  checked earlier documents, by type
+     * @return list<Document>  new uploads whose text is read after the response
      */
-    protected function processUploads(LoanApplication $application, array $validated, array $reused = []): void
+    protected function processUploads(LoanApplication $application, array $validated, array $reused = []): array
     {
+        $readLater = [];
+
         foreach (ReusableDocuments::TYPES as $documentType) {
             if (isset($reused[$documentType])) {
                 $this->reuseDocument($application, $reused[$documentType]);
@@ -175,6 +206,12 @@ class LoanApplicationController extends Controller
                 'uploaded_at' => now(),
             ]);
 
+            if (in_array($documentType, self::READ_AFTER_RESPONSE, true)) {
+                $readLater[] = $document;
+
+                continue;
+            }
+
             $ocrStartedAt = microtime(true);
             $this->ocrService->process($document);
 
@@ -185,6 +222,8 @@ class LoanApplicationController extends Controller
                 microtime(true) - $ocrStartedAt
             ), ['application_id' => $application->id]);
         }
+
+        return $readLater;
     }
 
     /**

@@ -19,6 +19,8 @@ RUN { echo "upload_max_filesize=6M"; echo "post_max_size=20M"; \
     > /usr/local/etc/php/conf.d/app.ini
 
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
+# one Tesseract thread: OpenMP threads fight over a small shared CPU and make OCR several times slower
+ENV OMP_THREAD_LIMIT=1
 RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf \
  && sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
 
