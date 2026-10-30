@@ -110,7 +110,7 @@
                 </div>
 
                 <div class="rounded-2xl bg-white p-5 lg:col-span-2">
-                    <p class="text-sm font-bold text-ink">Application pipeline</p>
+                    <p class="text-sm font-bold text-ink">Example application pipeline</p>
                     <ul class="mt-3 divide-y divide-slate-200">
                         @foreach ($pipeline as $label => $value)
                             <li class="flex items-center justify-between gap-4 py-3 text-sm">
@@ -119,6 +119,7 @@
                             </li>
                         @endforeach
                     </ul>
+                    <p class="mt-2 text-xs text-body">Illustrative example, not live data.</p>
                 </div>
             </section>
         </div>
