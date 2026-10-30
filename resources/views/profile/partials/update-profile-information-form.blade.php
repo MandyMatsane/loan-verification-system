@@ -48,10 +48,26 @@
         </div>
 
         <div class="grid gap-6 md:grid-cols-2">
-            <div>
+            {{-- optional; the same check as ProfileUpdateRequest, shown while typing --}}
+            <div x-data="{
+                     phone: {{ Js::from((string) old('phone_number', $user->phone_number)) }},
+                     get phoneError() {
+                         const value = this.phone.trim();
+                         return value === '' || (value.length <= 30 && /^(0\d{9}|\+27\d{9})$/.test(value.replace(/ /g, '')))
+                             ? ''
+                             : {{ Js::from(\App\Http\Requests\ProfileUpdateRequest::PHONE_MESSAGE) }};
+                     },
+                 }">
                 <x-input-label for="phone_number" :value="__('Phone number')" />
-                <x-text-input id="phone_number" name="phone_number" type="text" class="mt-1 block w-full" :value="old('phone_number', $user->phone_number)" autocomplete="tel" />
-                <x-input-error class="mt-2" :messages="$errors->get('phone_number')" />
+                <x-text-input id="phone_number" name="phone_number" type="text" inputmode="tel" class="mt-1 block w-full" :value="old('phone_number', $user->phone_number)" autocomplete="tel"
+                              x-model="phone"
+                              ::aria-describedby="phoneError ? 'phone_number_error' : null"
+                              ::aria-invalid="phoneError ? 'true' : 'false'"
+                              ::class="phoneError && '!border-red-600 focus:!border-red-600 focus:!ring-red-600'" />
+                <p id="phone_number_error" class="mt-1 text-sm font-medium text-red-700" x-show="phoneError" x-text="phoneError" x-cloak></p>
+                <div x-show="! phoneError">
+                    <x-input-error class="mt-2" :messages="$errors->get('phone_number')" />
+                </div>
             </div>
 
             <div>
