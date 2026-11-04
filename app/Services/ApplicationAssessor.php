@@ -3,7 +3,9 @@
 namespace App\Services;
 
 use App\Models\AiAssessment;
+use App\Models\EducationCorrection;
 use App\Models\LoanApplication;
+use App\Models\User;
 use Illuminate\Contracts\Cache\Lock;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -67,6 +69,54 @@ class ApplicationAssessor
         $application->save();
 
         return true;
+    }
+
+    /**
+     * An admin's correction of the education: record it with the decision as it stands, then assess again
+     * with the new value. The old assessment is removed first, so if the ML service does not answer the
+     * application is Pending without an assessment and the usual retries pick it up.
+     * Returns null when another request is assessing the application.
+     */
+    public function correctEducation(LoanApplication $application, string $education, string $reason, User $admin): ?EducationCorrection
+    {
+        $lock = $this->lock($application, self::DEFAULT_TIMEOUT_SECONDS + 30);
+
+        if (! $lock->get()) {
+            return null;
+        }
+
+        try {
+            $application->refresh()->load('aiAssessment');
+            $previous = $application->aiAssessment;
+
+            $correction = EducationCorrection::create([
+                'application_id' => $application->id,
+                'admin_id' => $admin->id,
+                'old_education' => $application->education,
+                'new_education' => $education,
+                'reason' => $reason,
+                'previous_status' => $application->status,
+                'previous_outcome' => $previous?->eligibility_outcome,
+                'previous_confidence_score' => $previous?->confidence_score,
+                'previous_fraud_risk' => $previous?->fraud_risk_score,
+                'previous_reasoning_notes' => $previous?->reasoning_notes,
+            ]);
+
+            $application->education = $education;
+            $application->save();
+
+            $previous?->delete();
+            $application->setRelation('aiAssessment', null);
+
+            $this->assess($application);
+
+            $correction->new_status = $application->status;
+            $correction->save();
+
+            return $correction;
+        } finally {
+            $lock->release();
+        }
     }
 
     /**

@@ -180,6 +180,89 @@
                     @endif
                 </x-card>
 
+                <x-card title="Correct education">
+                    @php
+                        $correctionErrors = $errors->educationCorrection;
+                        $currentEducation = $application->education;
+                    @endphp
+
+                    <p class="text-xs text-slate-500">Current value</p>
+                    <p class="mt-0.5 text-sm font-bold text-ink">{{ $currentEducation ?? 'Not set' }}</p>
+
+                    <form method="POST" action="{{ route('admin.applications.education', $application) }}" class="mt-4 space-y-4">
+                        @csrf
+
+                        <div>
+                            <x-input-label for="correct_education" value="Corrected value" />
+                            <select id="correct_education" name="education" required
+                                    @if ($correctionErrors->has('education')) aria-invalid="true" aria-describedby="correct_education_error" @endif
+                                    class="mt-1 block min-h-11 w-full rounded-xl border-slate-300 bg-white px-4 py-2 text-ink focus:border-brand focus:ring-brand">
+                                @foreach (\App\Models\User::EDUCATION_OPTIONS as $option)
+                                    {{-- the value it is not, unless the admin just chose otherwise --}}
+                                    <option value="{{ $option }}" @selected(old('education', collect(\App\Models\User::EDUCATION_OPTIONS)->first(fn ($value) => $value !== $currentEducation)) === $option)>{{ $option }}</option>
+                                @endforeach
+                            </select>
+                            <div id="correct_education_error">
+                                <x-input-error class="mt-2" :messages="$correctionErrors->get('education')" />
+                            </div>
+                        </div>
+
+                        <div>
+                            <x-input-label for="correct_education_reason" value="Reason" />
+                            <textarea id="correct_education_reason" name="reason" rows="3" required maxlength="1000"
+                                      @if ($correctionErrors->has('reason')) aria-invalid="true" aria-describedby="correct_education_reason_error" @endif
+                                      class="mt-1 block w-full rounded-xl border-slate-300 bg-white px-4 py-3 text-sm text-ink placeholder:text-slate-500 focus:border-brand focus:ring-brand"
+                                      placeholder="For example: the applicant confirmed by phone that they have not graduated">{{ old('reason') }}</textarea>
+                            <div id="correct_education_reason_error">
+                                <x-input-error class="mt-2" :messages="$correctionErrors->get('reason')" />
+                            </div>
+                        </div>
+
+                        <p class="text-xs leading-5 text-body">Saving runs the assessment again with the corrected value. The current decision is kept in the history below.</p>
+
+                        <x-primary-button>Save and reassess</x-primary-button>
+                    </form>
+
+                    <div class="mt-6 border-t border-slate-200 pt-4">
+                        <h3 class="text-xs font-bold text-ink">Correction history</h3>
+
+                        @forelse ($application->educationCorrections->sortByDesc('id') as $correction)
+                            <div class="mt-3 rounded-xl bg-surface p-3 text-sm">
+                                <p class="font-bold text-ink">{{ $correction->old_education ?? 'Not set' }} &rarr; {{ $correction->new_education }}</p>
+                                <p class="mt-0.5 text-xs text-slate-500">
+                                    {{ $correction->created_at?->format('j M Y, H:i') }} by {{ $correction->admin?->name ?? 'a deleted admin' }}
+                                </p>
+                                <p class="mt-2 whitespace-pre-wrap break-words leading-6 text-body">{{ $correction->reason }}</p>
+                                <dl class="mt-2 space-y-1 text-xs text-body">
+                                    <div>
+                                        <dt class="inline font-semibold text-ink">Before:</dt>
+                                        @php
+                                            $previousModel = collect([
+                                                $correction->previous_outcome ? 'model ' . $correction->previous_outcome : null,
+                                                $correction->previous_confidence_score !== null ? (float) $correction->previous_confidence_score . '% confidence' : null,
+                                                $correction->previous_fraud_risk ? $correction->previous_fraud_risk . ' fraud risk' : null,
+                                            ])->filter()->implode(', ');
+                                        @endphp
+                                        <dd class="inline">{{ $correction->previous_status ?? '-' }}{{ $previousModel !== '' ? ' (' . $previousModel . ')' : '' }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt class="inline font-semibold text-ink">After:</dt>
+                                        <dd class="inline">{{ $correction->new_status ?? '-' }}</dd>
+                                    </div>
+                                </dl>
+                                @if (filled($correction->previous_reasoning_notes))
+                                    <details class="mt-2 text-xs">
+                                        <summary class="cursor-pointer font-semibold text-brand">Previous reasoning notes</summary>
+                                        <p class="mt-1 whitespace-pre-wrap leading-5 text-body">{{ $correction->previous_reasoning_notes }}</p>
+                                    </details>
+                                @endif
+                            </div>
+                        @empty
+                            <p class="mt-1 text-sm text-body">No corrections yet.</p>
+                        @endforelse
+                    </div>
+                </x-card>
+
                 <div class="rounded-2xl border border-amber-200 bg-amber-100 p-5 text-amber-800">
                     <h2 class="text-sm font-bold">Self-reported credit score</h2>
                     <p class="mt-1 text-sm leading-6">The credit score band is entered by the applicant and is not verified. Check it with an external source before you finalise a decision.</p>

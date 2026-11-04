@@ -4,11 +4,13 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\LoanApplication;
+use App\Models\User;
 use App\Services\ApplicationAssessor;
 use App\Services\FraudCheckService;
 use App\Services\MlPredictionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class ApplicationController extends Controller
 {
@@ -41,7 +43,7 @@ class ApplicationController extends Controller
 
     public function show(LoanApplication $application, FraudCheckService $fraudCheckService)
     {
-        $application->load('user', 'documents.ocrResult', 'aiAssessment');
+        $application->load('user', 'documents.ocrResult', 'aiAssessment', 'educationCorrections.admin');
 
         // the gross and net pay read from the payslip, as the document check sees them
         $payslipFigures = $fraudCheckService->payslipFigures($application);
@@ -63,6 +65,36 @@ class ApplicationController extends Controller
             false => $back->with('warning', 'The prediction service did not answer. Try again in a minute.'),
             null => $back->with('warning', 'This application is already being assessed. Refresh in a minute.'),
         };
+    }
+
+    public function correctEducation(Request $request, LoanApplication $application, ApplicationAssessor $assessor): RedirectResponse
+    {
+        $validated = $request->validateWithBag('educationCorrection', [
+            'education' => [
+                'required',
+                Rule::in(User::EDUCATION_OPTIONS),
+                Rule::notIn(array_filter([$application->education])),
+            ],
+            'reason' => ['required', 'string', 'max:1000'],
+        ], [
+            'education.not_in' => 'Choose a different value: the application already says ' . $application->education . '.',
+            'reason.required' => 'Give a reason for the correction.',
+        ]);
+
+        $correction = $assessor->correctEducation($application, $validated['education'], $validated['reason'], $request->user());
+        $back = redirect()->route('admin.applications.show', $application);
+
+        if ($correction === null) {
+            return $back->with('warning', 'This application is already being assessed. Refresh in a minute and try again.');
+        }
+
+        $from = $correction->old_education ?? 'not set';
+
+        if (strtolower(trim((string) $correction->new_status)) === 'pending') {
+            return $back->with('warning', "Education corrected from {$from} to {$correction->new_education}. The prediction service did not answer, so the application is Pending until the assessment is retried.");
+        }
+
+        return $back->with('success', "Education corrected from {$from} to {$correction->new_education}. The application was assessed again: {$correction->new_status}.");
     }
 
     public function retryPending(ApplicationAssessor $assessor): RedirectResponse

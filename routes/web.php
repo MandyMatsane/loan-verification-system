@@ -57,6 +57,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/applications/retry-pending', [AdminApplicationController::class, 'retryPending'])->name('applications.retry-pending');
         Route::get('/applications/{application}', [AdminApplicationController::class, 'show'])->name('applications.show');
         Route::post('/applications/{application}/retry', [AdminApplicationController::class, 'retry'])->name('applications.retry');
+        Route::post('/applications/{application}/education', [AdminApplicationController::class, 'correctEducation'])->name('applications.education');
     });
 });
 

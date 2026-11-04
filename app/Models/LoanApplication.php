@@ -46,6 +46,11 @@ class LoanApplication extends Model
         return $this->hasOne(AiAssessment::class, 'application_id');
     }
 
+    public function educationCorrections()
+    {
+        return $this->hasMany(EducationCorrection::class, 'application_id');
+    }
+
     /**
      * Pending (any capitalisation) with no AI assessment: the only applications a retry may touch.
      */
