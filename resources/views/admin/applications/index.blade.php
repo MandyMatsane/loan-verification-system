@@ -1,38 +1,35 @@
 <x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">All Applications</h2>
-    </x-slot>
+    <div class="space-y-6">
+        <x-page-header eyebrow="Dashboard / Applications" title="Applications"
+                       subtitle="{{ $applications->count() }} {{ \Illuminate\Support\Str::plural('application', $applications->count()) }} in the queue.">
+            <x-slot name="actions">
+                @if ($applications->contains(fn ($application) => $application->isRetryable()))
+                    <form method="POST" action="{{ route('admin.applications.retry-pending') }}">
+                        @csrf
+                        <x-primary-button>Retry all pending</x-primary-button>
+                    </form>
+                @endif
+                <x-button-link variant="outline" href="{{ route('dashboard') }}" class="hidden md:inline-flex">Back to dashboard</x-button-link>
+            </x-slot>
+        </x-page-header>
 
-    <div class="py-12">
-        <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white shadow sm:rounded-lg overflow-hidden">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead>
-                        <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500">ID</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500">Applicant</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500">Amount</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500">Status</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500">Fraud Risk</th>
-                            <th class="px-6 py-3"></th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-200">
-                        @foreach ($applications as $application)
-                            <tr>
-                                <td class="px-6 py-4">{{ $application->id }}</td>
-                                <td class="px-6 py-4">{{ $application->user->name }}</td>
-                                <td class="px-6 py-4">R{{ number_format($application->amount_requested, 2) }}</td>
-                                <td class="px-6 py-4">{{ $application->status }}</td>
-                                <td class="px-6 py-4">{{ $application->aiAssessment->fraud_risk_score ?? '—' }}</td>
-                                <td class="px-6 py-4">
-                                    <a href="{{ route('admin.applications.show', $application) }}" class="text-indigo-600">View</a>
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+        @if (session('success'))
+            <div class="rounded-2xl border border-green-200 bg-green-100 px-5 py-4 text-sm font-semibold text-green-800" role="status">
+                {{ session('success') }}
             </div>
-        </div>
+        @endif
+
+        @if (session('warning'))
+            <div class="rounded-2xl border border-amber-200 bg-amber-100 px-5 py-4 text-sm font-semibold text-amber-800" role="alert">
+                {{ session('warning') }}
+            </div>
+        @endif
+
+        @include('admin.applications.partials.queue', [
+            'rows' => $applications,
+            'title' => 'All applications',
+            'filters' => true,
+            'search' => true,
+        ])
     </div>
 </x-app-layout>

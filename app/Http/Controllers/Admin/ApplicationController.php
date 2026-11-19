@@ -4,22 +4,114 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\LoanApplication;
+use App\Models\User;
+use App\Services\ApplicationAssessor;
+use App\Services\FraudCheckService;
+use App\Services\MlPredictionService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class ApplicationController extends Controller
 {
-    
-    public function index()
+    public function dashboard(MlPredictionService $mlPredictionService, ApplicationAssessor $assessor)
     {
+        $assessor->retryDue();
+
+        $applications = LoanApplication::with('user', 'aiAssessment')->latest()->get();
+        // short timeout: the dashboard must not wait for a sleeping ML service
+        $featureImportance = $mlPredictionService->getFeatureImportance(5);
+
+        return view('admin.applications.dashboard', compact('applications', 'featureImportance'));
+    }
+
+    public function index(ApplicationAssessor $assessor)
+    {
+        $assessor->retryDue();
+
         $applications = LoanApplication::with('user', 'aiAssessment')->latest()->get();
 
         return view('admin.applications.index', compact('applications'));
     }
 
-    public function show(LoanApplication $application)
+    public function featureImportance(MlPredictionService $mlPredictionService)
     {
-        $application->load('user', 'documents.ocrResult', 'aiAssessment');
+        $featureImportance = $mlPredictionService->getFeatureImportance();
 
-        return view('admin.applications.show', compact('application'));
+        return view('admin.applications.feature-importance', compact('featureImportance'));
+    }
+
+    public function show(LoanApplication $application, FraudCheckService $fraudCheckService)
+    {
+        $application->load('user', 'documents.ocrResult', 'aiAssessment', 'educationCorrections.admin');
+
+        // the gross and net pay read from the payslip, as the document check sees them
+        $payslipFigures = $fraudCheckService->payslipFigures($application);
+        $bankStatementBalance = $fraudCheckService->bankStatementBalance($application);
+
+        return view('admin.applications.show', compact('application', 'payslipFigures', 'bankStatementBalance'));
+    }
+
+    public function retry(LoanApplication $application, ApplicationAssessor $assessor): RedirectResponse
+    {
+        $back = redirect()->route('admin.applications.show', $application);
+
+        if (! $application->isRetryable()) {
+            return $back->with('warning', 'Only pending applications without an assessment can be retried.');
+        }
+
+        return match ($assessor->retry($application)) {
+            true => $back->with('success', 'The application was assessed.'),
+            false => $back->with('warning', 'The prediction service did not answer. Try again in a minute.'),
+            null => $back->with('warning', 'This application is already being assessed. Refresh in a minute.'),
+        };
+    }
+
+    public function correctEducation(Request $request, LoanApplication $application, ApplicationAssessor $assessor): RedirectResponse
+    {
+        $validated = $request->validateWithBag('educationCorrection', [
+            'education' => [
+                'required',
+                Rule::in(User::EDUCATION_OPTIONS),
+                Rule::notIn(array_filter([$application->education])),
+            ],
+            'reason' => ['required', 'string', 'max:1000'],
+        ], [
+            'education.not_in' => 'Choose a different value: the application already says ' . $application->education . '.',
+            'reason.required' => 'Give a reason for the correction.',
+        ]);
+
+        $correction = $assessor->correctEducation($application, $validated['education'], $validated['reason'], $request->user());
+        $back = redirect()->route('admin.applications.show', $application);
+
+        if ($correction === null) {
+            return $back->with('warning', 'This application is already being assessed. Refresh in a minute and try again.');
+        }
+
+        $from = $correction->old_education ?? 'not set';
+
+        if (strtolower(trim((string) $correction->new_status)) === 'pending') {
+            return $back->with('warning', "Education corrected from {$from} to {$correction->new_education}. The prediction service did not answer, so the application is Pending until the assessment is retried.");
+        }
+
+        return $back->with('success', "Education corrected from {$from} to {$correction->new_education}. The application was assessed again: {$correction->new_status}.");
+    }
+
+    public function retryPending(ApplicationAssessor $assessor): RedirectResponse
+    {
+        $back = redirect()->route('admin.applications.index');
+        $result = $assessor->retryPending();
+
+        if ($result['tried'] === 0) {
+            return $back->with('success', 'No applications are waiting for an assessment.');
+        }
+
+        $message = sprintf('%d of %d retried %s assessed.', $result['assessed'], $result['tried'], $result['tried'] === 1 ? 'application was' : 'applications were');
+
+        if ($result['stopped_early']) {
+            $message .= ' Stopped early because the prediction service did not answer. Try again in a minute.';
+        }
+
+        return $back->with($result['assessed'] === $result['tried'] ? 'success' : 'warning', $message);
     }
 }

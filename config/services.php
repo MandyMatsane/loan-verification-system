@@ -35,4 +35,8 @@ return [
         ],
     ],
 
+    'ml_service' => [
+        'url' => env('ML_SERVICE_URL', 'http://localhost:8000'),
+    ],
+
 ];

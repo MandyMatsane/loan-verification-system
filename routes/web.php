@@ -1,8 +1,13 @@
 <?php
 
 use App\Http\Controllers\Admin\ApplicationController as AdminApplicationController;
+use App\Http\Controllers\DocumentDownloadController;
 use App\Http\Controllers\LoanApplicationController;
 use App\Http\Controllers\ProfileController;
+use App\Models\LoanApplication;
+use App\Services\ApplicationAssessor;
+use App\Services\MlPredictionService;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -10,7 +15,24 @@ Route::get('/', function () {
 });
 
 Route::get('/dashboard', function () {
-    return view('dashboard');
+    $user = Auth::user();
+    $applications = collect();
+    $featureImportance = [];
+
+    if ($user) {
+        // retry one stuck application: any for an admin, only their own for an applicant
+        app(ApplicationAssessor::class)->retryDue($user->role === 'admin' ? null : $user->id);
+    }
+
+    if ($user && $user->role === 'admin') {
+        $applications = LoanApplication::with('user', 'aiAssessment')->latest()->get();
+        $featureImportance = app(MlPredictionService::class)->getFeatureImportance(5); // short timeout: the dashboard must not wait
+    } elseif ($user) {
+        // read-only view data: the applicant's own applications
+        $applications = LoanApplication::with('aiAssessment')->where('user_id', $user->id)->latest()->get();
+    }
+
+    return view('dashboard', compact('applications', 'featureImportance'));
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
@@ -21,14 +43,22 @@ Route::middleware('auth')->group(function () {
     //loan application routes
     Route::get('/applications/create', [LoanApplicationController::class, 'create'])->name('applications.create');
     Route::post('/applications', [LoanApplicationController::class, 'store'])->name('applications.store');
+    Route::get('/applications/{application}/confirmation', [LoanApplicationController::class, 'confirmation'])->name('applications.confirmation');
     Route::get('/applications/{application}', [LoanApplicationController::class, 'show'])->name('applications.show');
     Route::post('/applications/{application}/documents', [LoanApplicationController::class, 'uploadDocument'])->name('applications.documents.store');
+    // admins and the document's owner only; checked in the controller
+    Route::get('/documents/{document}/download', DocumentDownloadController::class)->name('documents.download');
 
     // Admin routes
     Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
-    Route::get('/applications', [AdminApplicationController::class, 'index'])->name('applications.index');
-    Route::get('/applications/{application}', [AdminApplicationController::class, 'show'])->name('applications.show');
-});
+        Route::get('/dashboard', [AdminApplicationController::class, 'dashboard'])->name('dashboard');
+        Route::get('/feature-importance', [AdminApplicationController::class, 'featureImportance'])->name('feature-importance');
+        Route::get('/applications', [AdminApplicationController::class, 'index'])->name('applications.index');
+        Route::post('/applications/retry-pending', [AdminApplicationController::class, 'retryPending'])->name('applications.retry-pending');
+        Route::get('/applications/{application}', [AdminApplicationController::class, 'show'])->name('applications.show');
+        Route::post('/applications/{application}/retry', [AdminApplicationController::class, 'retry'])->name('applications.retry');
+        Route::post('/applications/{application}/education', [AdminApplicationController::class, 'correctEducation'])->name('applications.education');
+    });
 });
 
 require __DIR__.'/auth.php';
